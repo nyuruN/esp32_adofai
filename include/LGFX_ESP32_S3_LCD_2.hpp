@@ -45,7 +45,7 @@ public:
       cfg.spi_mode = 0;             // Set the SPI communication mode (0 ~ 3)
       cfg.freq_write = 80000000;    // SPI clock during transmission (maximum 80MHz, rounded to a value divided by 80MHz as an integer)
       cfg.freq_read  = 16000000;    // SPI clock during reception
-      cfg.spi_3wire  = false;        // Set to true if reception is performed on the MOSI pin
+      cfg.spi_3wire  = true;        // Set to true if reception is performed on the MOSI pin
       cfg.use_lock   = true;        // Set to true if using transaction lock
       cfg.dma_channel = SPI_DMA_CH_AUTO; // Set the DMA channel to use (0=No DMA / 1=1ch / 2=ch / SPI_DMA_CH_AUTO=Auto)
       // ※ With the ESP-IDF version upgrade, SPI_DMA_CH_AUTO (Auto) is now recommended for DMA channels. Specifying 1ch, 2ch is deprecated.

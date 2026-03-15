@@ -1,4 +1,3 @@
-
 #include <LovyanGFX.hpp>
 #include "LGFX_ESP32_S3_LCD_2.hpp"
 
@@ -135,7 +134,7 @@ static void mainfunc(void)
   _fps = fps;
 }
 
-void setup(void)
+void setup_display(void)
 {
   lcd.begin();
   lcd.startWrite();
@@ -199,8 +198,67 @@ void loop(void)
   drawfunc();
 }
 
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_heap_caps.h"
+#include "esp_system.h"
+#include "esp_flash.h"
+
+#include "esp_log.h"
+#include "esp_psram.h"
+#include "esp_spi_flash.h"
+
+#include "esp_flash_spi_init.h"
+
+void print_memory_info(void) {
+    // Get total and free sizes for different memory types
+    multi_heap_info_t info;
+
+    // 1. Internal SRAM (IRAM/DRAM) - MALLOC_CAP_INTERNAL
+    heap_caps_get_info(&info, MALLOC_CAP_INTERNAL);
+    ESP_LOGI("Main", "\n--- Internal SRAM (IRAM/DRAM) ---\n");
+    ESP_LOGI("Main", "Total: %d KB\n", (info.total_free_bytes + info.total_allocated_bytes) / 1024);
+    ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
+    ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
+
+//size_t psram_size = esp_psram_get_size();
+//ESP_LOGI("Main", "PSRAM size: %d bytes\n", (int)psram_size);
+
+    // 2. External PSRAM (SPIRAM) - MALLOC_CAP_SPIRAM
+    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0) {
+        heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
+        ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
+        ESP_LOGI("Main", "Total: %d KB\n", (info.total_free_bytes + info.total_allocated_bytes) / 1024);
+        ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
+        ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
+    } else {
+        ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
+        ESP_LOGI("Main", "PSRAM is not enabled or not detected.\n");
+    }
+
+    // 3. Flash Size (Storage, not RAM)
+    ESP_LOGI("Main", "\n--- Flash (Storage) ---\n");
+
+    uint32_t flash_size;
+    auto res = esp_flash_get_size(NULL, &flash_size);
+
+    if (res == ESP_OK) {
+      ESP_LOGI("Main", "Total Flash Size: %d MB\n", (int)flash_size / (1024 * 1024));
+    } else {
+      ESP_LOGI("Main", "Failed to get flash size.\n");
+    }
+
+    // Optional: Print a summary from the main heap
+    ESP_LOGI("Main", "\n--- Summary ---\n");
+    ESP_LOGI("Main", "Total Free Heap (all memory): %d KB\n", (int)esp_get_free_heap_size() / 1024);
+    ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
+}
+
 extern "C" void app_main()
 {
-  setup();
+  ESP_LOGI("Main", "Hello, ESP32!");
+  setup_display();
+  print_memory_info();
   for (;;) loop();
 }
