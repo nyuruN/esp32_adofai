@@ -12,22 +12,24 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
+// Global objects
 static LGFX lcd;
 static LGFX_Sprite _sprites[2];
 
-static constexpr std::uint32_t SHIFTSIZE = 8;
-
+// Auxiliary variables
 static std::uint32_t _fps = 0;
 static std::uint32_t sec, psec;
 static std::uint32_t fps = 0, frame_count = 0;
-
-static std::uint32_t _width;
-static std::uint32_t _height;
-
 bool _is_running;
 std::uint32_t _draw_count;
 std::uint32_t _loop_count;
 
+// Fixed point math variables
+static constexpr std::uint32_t SHIFTSIZE = 8;
+static std::uint32_t _width;
+static std::uint32_t _height;
+
+// Perform partial refresh
 static void diffDraw(LGFX_Sprite* sp0, LGFX_Sprite* sp1)
 {
   union
@@ -85,12 +87,27 @@ static void drawfunc(void)
   sprite = &(_sprites[flip]);
   sprite->clear();
 
+  /*
+  if (flip) {
+    sprite->fillRect(0, 0, width, height, sprite->color332(255, 0, 0));
+  } else {
+    sprite->fillRect(0, 0, width, height, sprite->color332(0, 0, 0));
+  }
+  */
+  
+  sprite->fillRect(0, 0, width, height, sprite->color332(255, 0, 0));
+
+  sprite->fillCircle(width / 2, height / 2, (height / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(0, 0, 0));
+  sprite->fillCircle(width / 2, height / 2, ((height - 20) / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(255, 255, 255));
+
+  /*
   for (int32_t i = 8; i < width; i += 16) {
     sprite->drawFastVLine(i, 0, height, 0x1F);
   }
   for (int32_t i = 8; i < height; i += 16) {
     sprite->drawFastHLine(0, i, width, 0x1F);
   }
+  */
 
   sprite->setCursor(1,1);
   sprite->setTextColor(TFT_BLACK);
