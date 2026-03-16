@@ -4,5 +4,7 @@
 .vscode/launch.json
 .vscode/ipch
 
+managed_components/
+
 # SPIFFS image data
 data/

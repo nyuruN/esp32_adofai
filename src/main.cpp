@@ -194,12 +194,6 @@ void setup_display(void)
   _loop_count = 0;
 }
 
-void loop(void)
-{
-  mainfunc();
-  drawfunc();
-}
-
 #include "esp_flash.h"
 #include "esp_log.h"
 
@@ -270,9 +264,18 @@ void setup_spiffs(void) {
   }
 }
 
-extern "C" void app_main()
-{
-  ESP_LOGI("Main", "Hello, ESP32!");
+#include <Arduino.h>
+#include <AudioFileSourceSPIFFS.h>
+#include <AudioGeneratorMP3.h>
+#include <AudioFileSourceID3.h>
+#include <AudioOutputI2SNoDAC.h>
+
+AudioGeneratorMP3 *mp3;
+AudioFileSourceSPIFFS *file;
+AudioOutputI2SNoDAC *out;
+AudioFileSourceID3 *id3;
+
+void setup(void) {
   setup_display();
   setup_spiffs();
 
@@ -282,7 +285,25 @@ extern "C" void app_main()
   _background.createSprite(lcd.width(), lcd.height());
   _background.drawPngFile("/spiffs/bg.png", 0, 0, lcd.width(), lcd.height());
 
-  print_memory_info();
+  file = new AudioFileSourceSPIFFS("/spiffs/audio.mp3");
+  id3 = new AudioFileSourceID3(file);
+  out = new AudioOutputI2SNoDAC();
+  mp3 = new AudioGeneratorMP3();
+  mp3->begin(id3, out);
 
+  print_memory_info();
+}
+
+void loop(void) {
+  mainfunc();
+  drawfunc();
+}
+
+/*
+extern "C" void app_main()
+{
+  initArduino();
+  setup();
   for (;;) loop();
 }
+*/
