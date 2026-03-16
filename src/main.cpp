@@ -14,6 +14,7 @@ typedef int64_t i64;
 // Global objects
 static LGFX lcd;
 static LGFX_Sprite _sprites[2];
+static LGFX_Sprite _background;
 
 // Auxiliary variables
 static std::uint32_t _fps = 0;
@@ -94,7 +95,8 @@ static void drawfunc(void)
   }
   */
   
-  sprite->fillRect(0, 0, width, height, sprite->color332(255, 0, 0));
+  _background.pushSprite(sprite, 0, 0);
+  //sprite->fillRect(0, 0, width, height, sprite->color332(255, 0, 0));
 
   sprite->fillCircle(width / 2, height / 2, (height / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(0, 0, 0));
   sprite->fillCircle(width / 2, height / 2, ((height - 20) / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(255, 255, 255));
@@ -107,7 +109,7 @@ static void drawfunc(void)
     sprite->drawFastHLine(0, i, width, 0x1F);
   }
   */
-
+  
   sprite->setCursor(1,1);
   sprite->setTextColor(TFT_BLACK);
   sprite->printf("fps:%d", (int)_fps);
@@ -198,18 +200,8 @@ void loop(void)
   drawfunc();
 }
 
-#include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_heap_caps.h"
-#include "esp_system.h"
 #include "esp_flash.h"
-
 #include "esp_log.h"
-#include "esp_psram.h"
-#include "esp_spi_flash.h"
-
-#include "esp_flash_spi_init.h"
 
 void print_memory_info(void) {
     // Get total and free sizes for different memory types
@@ -255,10 +247,42 @@ void print_memory_info(void) {
     ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
 }
 
+#include "esp_spiffs.h"
+
+void setup_spiffs(void) {
+  esp_vfs_spiffs_conf_t conf = {
+    .base_path = "/spiffs",           // Mount point
+    .partition_label = "spiffs",       // Must match the name in partitions.csv
+    .max_files = 5,                    // Max number of files that can be open at once
+    .format_if_mount_failed = true     // Format if mount fails (useful for first boot)
+  };
+  esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+  if (ret != ESP_OK) {
+    if (ret == ESP_FAIL) {
+      ESP_LOGE("spiffs", "Failed to mount or format filesystem");
+    } else if (ret == ESP_ERR_NOT_FOUND) {
+      ESP_LOGE("spiffs", "Failed to find SPIFFS partition");
+    } else {
+      ESP_LOGE("spiffs", "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+    }
+    return;
+  }
+}
+
 extern "C" void app_main()
 {
   ESP_LOGI("Main", "Hello, ESP32!");
   setup_display();
+  setup_spiffs();
+
+  _background.setTextSize(2);
+  _background.setColorDepth(8);
+  _background.setPsram(true);
+  _background.createSprite(lcd.width(), lcd.height());
+  _background.drawPngFile("/spiffs/bg.png", 0, 0, lcd.width(), lcd.height());
+
   print_memory_info();
+
   for (;;) loop();
 }
