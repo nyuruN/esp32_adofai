@@ -241,51 +241,57 @@ void print_memory_info(void) {
     ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
 }
 
-#include "esp_spiffs.h"
+#include "esp_littlefs.h"
 
-void setup_spiffs(void) {
-  esp_vfs_spiffs_conf_t conf = {
-    .base_path = "/spiffs",           // Mount point
-    .partition_label = "spiffs",       // Must match the name in partitions.csv
-    .max_files = 5,                    // Max number of files that can be open at once
-    .format_if_mount_failed = true     // Format if mount fails (useful for first boot)
-  };
-  esp_err_t ret = esp_vfs_spiffs_register(&conf);
+void setup_littlefs(void)
+{
+    ESP_LOGE("littlefs", "Mounting LittleFS...");
 
-  if (ret != ESP_OK) {
-    if (ret == ESP_FAIL) {
-      ESP_LOGE("spiffs", "Failed to mount or format filesystem");
-    } else if (ret == ESP_ERR_NOT_FOUND) {
-      ESP_LOGE("spiffs", "Failed to find SPIFFS partition");
-    } else {
-      ESP_LOGE("spiffs", "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+    esp_vfs_littlefs_conf_t conf = {
+        .base_path = "/littlefs",      // Mount point
+        .partition_label = "littlefs", // Must match the name in your partition table
+        .format_if_mount_failed = true, // Automatically format if mount fails
+        .dont_mount = false,
+    };
+
+    // Mount the filesystem
+    esp_err_t ret = esp_vfs_littlefs_register(&conf);
+    if (ret != ESP_OK) {
+        ESP_LOGE("littlefs", "Failed to mount LittleFS (%s)", esp_err_to_name(ret));
+        return;
     }
-    return;
-  }
+
+    // Get and log total and used space
+    size_t total_bytes, used_bytes;
+    ret = esp_littlefs_info(conf.partition_label, &total_bytes, &used_bytes);
+    if (ret == ESP_OK) {
+        ESP_LOGE("littlefs", "Partition size: total: %d, used: %d", total_bytes, used_bytes);
+    }
 }
 
+#include <LittleFS.h>
 #include <Arduino.h>
-#include <AudioFileSourceSPIFFS.h>
 #include <AudioGeneratorMP3.h>
 #include <AudioFileSourceID3.h>
 #include <AudioOutputI2SNoDAC.h>
+#include <AudioFileSourceLittleFS.h>
 
 AudioGeneratorMP3 *mp3;
-AudioFileSourceSPIFFS *file;
+AudioFileSourceLittleFS *file;
 AudioOutputI2SNoDAC *out;
 AudioFileSourceID3 *id3;
 
 void setup(void) {
   setup_display();
-  setup_spiffs();
+  setup_littlefs();
 
   _background.setTextSize(2);
   _background.setColorDepth(8);
   _background.setPsram(true);
   _background.createSprite(lcd.width(), lcd.height());
-  _background.drawPngFile("/spiffs/bg.png", 0, 0, lcd.width(), lcd.height());
+  _background.drawPngFile("/littlefs/bg.png", 0, 0, lcd.width(), lcd.height());
 
-  file = new AudioFileSourceSPIFFS("/spiffs/audio.mp3");
+  file = new AudioFileSourceLittleFS("/littlefs/audio.mp3");
   id3 = new AudioFileSourceID3(file);
   out = new AudioOutputI2SNoDAC();
   mp3 = new AudioGeneratorMP3();
