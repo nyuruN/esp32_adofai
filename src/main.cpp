@@ -241,34 +241,6 @@ void print_memory_info(void) {
     ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
 }
 
-#include "esp_littlefs.h"
-
-void setup_littlefs(void)
-{
-    ESP_LOGE("littlefs", "Mounting LittleFS...");
-
-    esp_vfs_littlefs_conf_t conf = {
-        .base_path = "/littlefs",      // Mount point
-        .partition_label = "littlefs", // Must match the name in your partition table
-        .format_if_mount_failed = true, // Automatically format if mount fails
-        .dont_mount = false,
-    };
-
-    // Mount the filesystem
-    esp_err_t ret = esp_vfs_littlefs_register(&conf);
-    if (ret != ESP_OK) {
-        ESP_LOGE("littlefs", "Failed to mount LittleFS (%s)", esp_err_to_name(ret));
-        return;
-    }
-
-    // Get and log total and used space
-    size_t total_bytes, used_bytes;
-    ret = esp_littlefs_info(conf.partition_label, &total_bytes, &used_bytes);
-    if (ret == ESP_OK) {
-        ESP_LOGE("littlefs", "Partition size: total: %d, used: %d", total_bytes, used_bytes);
-    }
-}
-
 #include <LittleFS.h>
 #include <Arduino.h>
 #include <AudioGeneratorMP3.h>
@@ -283,7 +255,7 @@ AudioFileSourceID3 *id3;
 
 void setup(void) {
   setup_display();
-  setup_littlefs();
+  LittleFS.begin(true, "/littlefs", 10, "littlefs");
 
   _background.setTextSize(2);
   _background.setColorDepth(8);
@@ -291,15 +263,14 @@ void setup(void) {
   _background.createSprite(lcd.width(), lcd.height());
   _background.drawPngFile("/littlefs/bg.png", 0, 0, lcd.width(), lcd.height());
 
-  file = new AudioFileSourceLittleFS("/littlefs/audio.mp3");
-  id3 = new AudioFileSourceID3(file);
+  file = new AudioFileSourceLittleFS("/audio.mp3");
   out = new AudioOutputI2S();
   mp3 = new AudioGeneratorMP3();
 
-  out->SetPinout(43, 47, 44);
+  out->SetPinout(12, 11, 14);
   out->SetGain(0.5);
 
-  mp3->begin(id3, out);
+  mp3->begin(file, out);
 
   print_memory_info();
 }
@@ -313,12 +284,3 @@ void loop(void) {
   mainfunc();
   drawfunc();
 }
-
-/*
-extern "C" void app_main()
-{
-  initArduino();
-  setup();
-  for (;;) loop();
-}
-*/
