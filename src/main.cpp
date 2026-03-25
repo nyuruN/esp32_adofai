@@ -273,12 +273,12 @@ void setup_littlefs(void)
 #include <Arduino.h>
 #include <AudioGeneratorMP3.h>
 #include <AudioFileSourceID3.h>
-#include <AudioOutputI2SNoDAC.h>
+#include <AudioOutputI2S.h>
 #include <AudioFileSourceLittleFS.h>
 
 AudioGeneratorMP3 *mp3;
 AudioFileSourceLittleFS *file;
-AudioOutputI2SNoDAC *out;
+AudioOutputI2S *out;
 AudioFileSourceID3 *id3;
 
 void setup(void) {
@@ -293,14 +293,23 @@ void setup(void) {
 
   file = new AudioFileSourceLittleFS("/littlefs/audio.mp3");
   id3 = new AudioFileSourceID3(file);
-  out = new AudioOutputI2SNoDAC();
+  out = new AudioOutputI2S();
   mp3 = new AudioGeneratorMP3();
+
+  out->SetPinout(43, 47, 44);
+  out->SetGain(0.5);
+
   mp3->begin(id3, out);
 
   print_memory_info();
 }
 
 void loop(void) {
+  if (mp3->isRunning()) {
+    if (!mp3->loop()) {
+      mp3->stop();
+    }
+  }
   mainfunc();
   drawfunc();
 }
