@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <LovyanGFX.hpp>
 #include "LGFX_ESP32_S3_LCD_2.hpp"
 
@@ -87,29 +88,12 @@ static void drawfunc(void)
   sprite = &(_sprites[flip]);
   sprite->clear();
 
-  /*
-  if (flip) {
-    sprite->fillRect(0, 0, width, height, sprite->color332(255, 0, 0));
-  } else {
-    sprite->fillRect(0, 0, width, height, sprite->color332(0, 0, 0));
-  }
-  */
   
   _background.pushSprite(sprite, 0, 0);
-  //sprite->fillRect(0, 0, width, height, sprite->color332(255, 0, 0));
 
   sprite->fillCircle(width / 2, height / 2, (height / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(0, 0, 0));
   sprite->fillCircle(width / 2, height / 2, ((height - 20) / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(255, 255, 255));
 
-  /*
-  for (int32_t i = 8; i < width; i += 16) {
-    sprite->drawFastVLine(i, 0, height, 0x1F);
-  }
-  for (int32_t i = 8; i < height; i += 16) {
-    sprite->drawFastHLine(0, i, width, 0x1F);
-  }
-  */
-  
   sprite->setCursor(1,1);
   sprite->setTextColor(TFT_BLACK);
   sprite->printf("fps:%d", (int)_fps);
@@ -138,7 +122,8 @@ static void mainfunc(void)
 
 void setup_display(void)
 {
-  lcd.begin();
+  lcd.init();
+
   lcd.startWrite();
   lcd.setColorDepth(8);
   if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
@@ -241,20 +226,119 @@ void print_memory_info(void) {
     ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
 }
 
+#include "esp_vfs_fat.h"
+#include "sdmmc_cmd.h"
+
+void setup_sdcard(void) {
+  esp_log_level_set("sdmmc", ESP_LOG_VERBOSE);
+  esp_log_level_set("sdspi", ESP_LOG_VERBOSE);
+
+  esp_err_t ret;
+
+  // 2. Configure the SD slot (SPI mode)
+  sdspi_device_config_t slot_cfg = SDSPI_DEVICE_CONFIG_DEFAULT();
+  slot_cfg.gpio_cs = (gpio_num_t)41;
+  slot_cfg.host_id = SPI2_HOST;
+  
+  // 3. Configure the SDMMC host structure for SPI
+  sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+  host.slot = SPI2_HOST; // Use the same SPI host
+  //host.max_freq_khz = SDMMC_FREQ_DEFAULT; // 20MHz, which is the max for SPI mode
+  host.max_freq_khz = 400;
+
+  /*
+  spi_bus_config_t bus_cfg = {
+      .mosi_io_num = 38,
+      .miso_io_num = 40,
+      .sclk_io_num = 39,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1,
+      .max_transfer_sz = 4000
+  };
+
+  ret = spi_bus_initialize((spi_host_device_t)host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
+  if (ret != ESP_OK) {
+      ESP_LOGE("sd", "Failed to initialize bus.");
+      return;
+  }
+  */
+
+  delay(1000); // Short delay to ensure bus is ready
+  
+  // 4. Mount the filesystem
+  esp_vfs_fat_mount_config_t mount_config = {
+      .format_if_mount_failed = false, // Set to true to format the card if mounting fails
+      .max_files = 5,
+      .allocation_unit_size = 16 * 1024
+  };
+  
+  sdmmc_card_t *card;
+  ret = esp_vfs_fat_sdspi_mount("/sd", &host, &slot_cfg, &mount_config, &card);
+  
+  if (ret != ESP_OK) {
+      if (ret == ESP_FAIL) {
+          ESP_LOGE("sd", "Failed to mount filesystem. If you want the card to be formatted, set format_if_mount_failed = true.");
+      } else {
+          ESP_LOGE("sd", "Failed to initialize the SD card (%s). Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
+      }
+      esp_vfs_fat_sdcard_unmount("/sd", card);
+      return;
+  }
+  
+  // 5. Card initialization successful, print card info
+  sdmmc_card_print_info(stdout, card);
+
+  uint8_t buffer[512];
+  esp_err_t err = sdmmc_read_sectors(card, buffer, 0, 1);
+  if (err != ESP_OK) {
+    ESP_LOGE("sd", "Raw read failed: 0x%x", err);
+  } else {
+    ESP_LOGI("sd", "Raw read successful. First 16 bytes:");
+    for (int i = 0; i < 16; i++) {
+        ESP_LOGI("sd", "%02x ", buffer[i]);
+    }
+    ESP_LOGI("sd", "\n");
+  }
+
+  esp_vfs_fat_sdcard_unmount("/sd", card);
+
+  // Create a temporary "dummy" device on the same SPI bus.
+  // Using spics_io_num = -1 means no CS pin is driven.
+  spi_device_handle_t dummy_dev;
+  spi_device_interface_config_t dummy_cfg = {
+      .mode = 0,                     // SPI mode 0 (CPOL=0, CPHA=0)
+      .clock_speed_hz = 1000000,     // 1 MHz – safe and fast enough
+      .spics_io_num = -1,            // No CS pin
+      .queue_size = 1,
+  };
+  spi_bus_add_device(SPI2_HOST, &dummy_cfg, &dummy_dev);
+
+  // Send 10 dummy bytes (0xFF) – usually 8–16 bytes are enough.
+  uint8_t dummy_data[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  spi_transaction_t trans = {
+      .flags = SPI_TRANS_USE_TXDATA, // optional
+      .length = 8 * 10,   // 10 bytes
+      .tx_buffer = dummy_data,
+  };
+  spi_device_transmit(dummy_dev, &trans);
+
+  // Remove the dummy device to free resources.
+  spi_bus_remove_device(dummy_dev);
+}
+
 #include <LittleFS.h>
 #include <Arduino.h>
 #include <AudioGeneratorMP3.h>
-#include <AudioFileSourceID3.h>
 #include <AudioOutputI2S.h>
 #include <AudioFileSourceLittleFS.h>
 
 AudioGeneratorMP3 *mp3;
 AudioFileSourceLittleFS *file;
 AudioOutputI2S *out;
-AudioFileSourceID3 *id3;
 
 void setup(void) {
   setup_display();
+  setup_sdcard();
   LittleFS.begin(true, "/littlefs", 10, "littlefs");
 
   _background.setTextSize(2);
@@ -268,7 +352,7 @@ void setup(void) {
   mp3 = new AudioGeneratorMP3();
 
   out->SetPinout(12, 11, 14);
-  out->SetGain(0.5);
+  out->SetGain(0.05);
 
   mp3->begin(file, out);
 
