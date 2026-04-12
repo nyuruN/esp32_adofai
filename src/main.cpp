@@ -18,6 +18,7 @@ static LGFX_Sprite _sprites[2];
 static LGFX_Sprite _background;
 
 // Auxiliary variables
+static std::uint64_t pmillis = 0;
 static std::uint32_t _fps = 0;
 static std::uint32_t sec, psec;
 static std::uint32_t fps = 0, frame_count = 0;
@@ -29,6 +30,71 @@ std::uint32_t _loop_count;
 static constexpr std::uint32_t SHIFTSIZE = 8;
 static std::uint32_t _width;
 static std::uint32_t _height;
+
+enum class VisualInfo {
+  None = 0,
+  Twirl = 1,
+  SpeedUp = 2,
+  SpeedDown = 3,
+};
+enum class EventType : u8 {
+  MoveCamera = 0,
+  ShakeScreen = 1,
+};
+
+enum class EaseType : u8 {
+  Linear = 0,
+  EaseIn = 1,
+  EaseOut = 2,
+  EaseInOut = 3,
+};
+
+struct ShakeScreen {
+  u32 floor;
+  u32 duration;
+  u16 intensity;
+  u8 strength;
+  EaseType ease;
+};
+struct MoveCamera {
+  u32 floor;
+  u32 duration;
+  u16 zoom;
+  i16 rotation;
+  i8 pos_x;
+  i8 pos_y;
+  EaseType ease;
+};
+struct SetSpeed {
+  u32 floor;
+  float bpm;
+  bool is_multiplier;
+};
+
+struct Event {
+  EventType type;
+  union {
+    MoveCamera move_camera;
+    ShakeScreen shake_screen;
+    SetSpeed set_speed;
+  };
+};
+
+static i16 angle_data[32] = { 0, 0, 90, 90, 180, 180, 180, 90, 0, 90, -135, 0, 90, 180, 90, 0, 0, 0, 0, 0, 270, 225, 90, 0, 0, 0, 0, 45, 90, 180, 180, 180, };
+static bool twirl_data[32] = { false };
+static Event events[64];
+static u32 current_floor = 0;
+static float current_angle = 0;
+static bool current_planet = 0; // 0 = p0
+static bool current_direction = 0; // 0 = cw
+static u8 p0_color = lcd.color332(50, 40, 255);
+static u8 p1_color = lcd.color332(255, 50, 40);
+static u8 tile_color = lcd.color332(240, 240, 240);
+static u16 bpm = 120;
+const u8 beat_radius = 30;
+
+static u8 p_positions = 0; // Represents current_floor 
+static u16 positions[16][2] = {};
 
 // Perform partial refresh
 static void diffDraw(LGFX_Sprite* sp0, LGFX_Sprite* sp1)
@@ -76,6 +142,28 @@ static void diffDraw(LGFX_Sprite* sp0, LGFX_Sprite* sp1)
   lcd.display();
 }
 
+
+// Init positions, traverse tilemap relative to current floor
+void init_positions(void) {
+  positions[p_positions][0] = lcd.width() / 2;
+  positions[p_positions][1] = lcd.height() / 2;
+  for (u8 i = 1; i < 8; i++) {
+    if (current_floor + i >= 32) break;
+    u8 idx = p_positions + i;
+    if (idx >= 16) idx -= 16; // Wrap around
+    positions[idx][0] = positions[idx - 1][0] + cos(angle_data[current_floor + i] * 3.14159 / 180) * beat_radius;
+    positions[idx][1] = positions[idx - 1][1] - sin(angle_data[current_floor + i] * 3.14159 / 180) * beat_radius;
+  }
+  for (u8 i = 1; i < 8; i++) {
+    if (current_floor - i < 0) break;
+    u8 idx = p_positions - i;
+    // 255 + 16 = 15, wraps around even if idx is 'negative'
+    if (idx >= 16) idx += 16;
+    positions[idx][0] = positions[idx + 1][0] + cos(angle_data[current_floor - i] * 3.14159 / 180) * beat_radius;
+    positions[idx][1] = positions[idx + 1][1] - sin(angle_data[current_floor - i] * 3.14159 / 180) * beat_radius;
+  }
+}
+
 static void drawfunc(void)
 {
   LGFX_Sprite *sprite;
@@ -88,18 +176,48 @@ static void drawfunc(void)
   sprite = &(_sprites[flip]);
   sprite->clear();
 
-  
   _background.pushSprite(sprite, 0, 0);
 
-  sprite->fillCircle(width / 2, height / 2, (height / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(0, 0, 0));
-  sprite->fillCircle(width / 2, height / 2, ((height - 20) / 2 - 20) * (_loop_count % 256) / 256, sprite->color332(255, 255, 255));
+  u16 center_x = width / 2, center_y = height / 2;
+  u16 orbit_x = center_x + cos(current_angle * 3.14159 / 180) * beat_radius, orbit_y = center_y - sin(current_angle * 3.14159 / 180) * beat_radius;
 
+  // Draw tiles
+  u16 floor_x = center_x;
+  u16 floor_y = center_y;
+  sprite->fillCircle(floor_x, floor_y, 15, twirl_data[current_floor] ? lcd.color332(255, 100, 100) : tile_color);
+  sprite->fillCircle(floor_x, floor_y, 13, twirl_data[current_floor] ? lcd.color332(255, 100, 100) : tile_color);
+  //for (i8 i = -8; i < 8; i++) {
+  for (u8 i = 0; i < 16; i++) {
+    if (current_floor + i < 0 || current_floor + i >= 32) continue; // Clip invalid floors
+    floor_x += cos(angle_data[current_floor + i] * 3.14159 / 180) * beat_radius;
+    floor_y -= sin(angle_data[current_floor + i] * 3.14159 / 180) * beat_radius;
+    //u8 idx = p_positions + i;
+    //if (idx >= 16) idx -= 16; // Wrap around
+    //if (positions[idx][0] < 0 - beat_radius || positions[idx][0] >= width + beat_radius) continue; // Clip out of view tiles
+    //if (positions[idx][1] < 0 - beat_radius || positions[idx][1] >= height + beat_radius) continue;
+    //sprite->fillCircle(positions[idx][0], positions[idx][1], 15, lcd.color332(20, 20, 20));
+    //sprite->fillCircle(positions[idx][0], positions[idx][1], 13, twirl_data[current_floor + i] ? lcd.color332(255, 100, 100) : tile_color);
+    sprite->fillCircle(floor_x, floor_y, 15, twirl_data[current_floor + i] ? lcd.color332(255, 100, 100) : tile_color);
+    sprite->fillCircle(floor_x, floor_y, 13, twirl_data[current_floor + i] ? lcd.color332(255, 100, 100) : tile_color);
+  }
+  
+  // Draw planets
+  sprite->fillCircle(center_x, center_y, 10, (current_planet ? p1_color : p0_color));
+  sprite->fillCircle(orbit_x, orbit_y, 10, (!current_planet ? p1_color : p0_color));
+
+  // Debug info
   sprite->setCursor(1,1);
   sprite->setTextColor(TFT_BLACK);
   sprite->printf("fps:%d", (int)_fps);
   sprite->setCursor(0,0);
   sprite->setTextColor(TFT_WHITE);
   sprite->printf("fps:%d", (int)_fps);
+  sprite->setCursor(1,21);
+  sprite->setTextColor(TFT_BLACK);
+  sprite->printf("dir:%d", (int)current_angle);
+  sprite->setCursor(0,20);
+  sprite->setTextColor(TFT_WHITE);
+  sprite->printf("dir:%d", (int)current_angle);
 
   diffDraw(&_sprites[flip], &_sprites[!flip]);
   ++_draw_count;
@@ -107,6 +225,8 @@ static void drawfunc(void)
 
 static void mainfunc(void)
 {
+  float delta_time = (lgfx::millis() - pmillis) / 1000.0;
+  pmillis = lgfx::millis();
   sec = lgfx::millis() / 1000;
   if (psec != sec) {
     psec = sec;
@@ -114,6 +234,25 @@ static void mainfunc(void)
     frame_count = 0;
     vTaskDelay(1);
   }
+
+  { // hit logic
+    float next_angle = angle_data[current_floor];
+    if (next_angle < 0) next_angle += 360;
+    if (current_angle < 0) current_angle += 360;
+    float angle_diff = abs(next_angle - current_angle);
+
+    if (angle_diff < 1.0f) {
+      // Simulate hit
+      current_floor++;
+      //p_positions++;
+      current_planet = !current_planet;
+      current_angle = angle_data[current_floor] + 180;
+      //init_positions();
+    }
+  }
+
+  float bps = bpm / 60;
+  current_angle = fmodf(current_angle + 180 * bps * delta_time * (current_direction ? 1 : -1), 360.0f);
 
   frame_count++;
   _loop_count++;
@@ -193,9 +332,6 @@ void print_memory_info(void) {
     ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
     ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
 
-//size_t psram_size = esp_psram_get_size();
-//ESP_LOGI("Main", "PSRAM size: %d bytes\n", (int)psram_size);
-
     // 2. External PSRAM (SPIRAM) - MALLOC_CAP_SPIRAM
     if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0) {
         heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
@@ -226,106 +362,6 @@ void print_memory_info(void) {
     ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
 }
 
-#include "esp_vfs_fat.h"
-#include "sdmmc_cmd.h"
-
-void setup_sdcard(void) {
-  esp_log_level_set("sdmmc", ESP_LOG_VERBOSE);
-  esp_log_level_set("sdspi", ESP_LOG_VERBOSE);
-
-  esp_err_t ret;
-
-  // 2. Configure the SD slot (SPI mode)
-  sdspi_device_config_t slot_cfg = SDSPI_DEVICE_CONFIG_DEFAULT();
-  slot_cfg.gpio_cs = (gpio_num_t)41;
-  slot_cfg.host_id = SPI2_HOST;
-  
-  // 3. Configure the SDMMC host structure for SPI
-  sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-  host.slot = SPI2_HOST; // Use the same SPI host
-  //host.max_freq_khz = SDMMC_FREQ_DEFAULT; // 20MHz, which is the max for SPI mode
-  host.max_freq_khz = 400;
-
-  /*
-  spi_bus_config_t bus_cfg = {
-      .mosi_io_num = 38,
-      .miso_io_num = 40,
-      .sclk_io_num = 39,
-      .quadwp_io_num = -1,
-      .quadhd_io_num = -1,
-      .max_transfer_sz = 4000
-  };
-
-  ret = spi_bus_initialize((spi_host_device_t)host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
-  if (ret != ESP_OK) {
-      ESP_LOGE("sd", "Failed to initialize bus.");
-      return;
-  }
-  */
-
-  delay(1000); // Short delay to ensure bus is ready
-  
-  // 4. Mount the filesystem
-  esp_vfs_fat_mount_config_t mount_config = {
-      .format_if_mount_failed = false, // Set to true to format the card if mounting fails
-      .max_files = 5,
-      .allocation_unit_size = 16 * 1024
-  };
-  
-  sdmmc_card_t *card;
-  ret = esp_vfs_fat_sdspi_mount("/sd", &host, &slot_cfg, &mount_config, &card);
-  
-  if (ret != ESP_OK) {
-      if (ret == ESP_FAIL) {
-          ESP_LOGE("sd", "Failed to mount filesystem. If you want the card to be formatted, set format_if_mount_failed = true.");
-      } else {
-          ESP_LOGE("sd", "Failed to initialize the SD card (%s). Make sure SD card lines have pull-up resistors in place.", esp_err_to_name(ret));
-      }
-      esp_vfs_fat_sdcard_unmount("/sd", card);
-      return;
-  }
-  
-  // 5. Card initialization successful, print card info
-  sdmmc_card_print_info(stdout, card);
-
-  uint8_t buffer[512];
-  esp_err_t err = sdmmc_read_sectors(card, buffer, 0, 1);
-  if (err != ESP_OK) {
-    ESP_LOGE("sd", "Raw read failed: 0x%x", err);
-  } else {
-    ESP_LOGI("sd", "Raw read successful. First 16 bytes:");
-    for (int i = 0; i < 16; i++) {
-        ESP_LOGI("sd", "%02x ", buffer[i]);
-    }
-    ESP_LOGI("sd", "\n");
-  }
-
-  esp_vfs_fat_sdcard_unmount("/sd", card);
-
-  // Create a temporary "dummy" device on the same SPI bus.
-  // Using spics_io_num = -1 means no CS pin is driven.
-  spi_device_handle_t dummy_dev;
-  spi_device_interface_config_t dummy_cfg = {
-      .mode = 0,                     // SPI mode 0 (CPOL=0, CPHA=0)
-      .clock_speed_hz = 1000000,     // 1 MHz – safe and fast enough
-      .spics_io_num = -1,            // No CS pin
-      .queue_size = 1,
-  };
-  spi_bus_add_device(SPI2_HOST, &dummy_cfg, &dummy_dev);
-
-  // Send 10 dummy bytes (0xFF) – usually 8–16 bytes are enough.
-  uint8_t dummy_data[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-  spi_transaction_t trans = {
-      .flags = SPI_TRANS_USE_TXDATA, // optional
-      .length = 8 * 10,   // 10 bytes
-      .tx_buffer = dummy_data,
-  };
-  spi_device_transmit(dummy_dev, &trans);
-
-  // Remove the dummy device to free resources.
-  spi_bus_remove_device(dummy_dev);
-}
-
 #include <LittleFS.h>
 #include <Arduino.h>
 #include <AudioGeneratorMP3.h>
@@ -338,7 +374,6 @@ AudioOutputI2S *out;
 
 void setup(void) {
   setup_display();
-  setup_sdcard();
   LittleFS.begin(true, "/littlefs", 10, "littlefs");
 
   _background.setTextSize(2);
@@ -354,6 +389,7 @@ void setup(void) {
   out->SetPinout(12, 11, 14);
   out->SetGain(0.05);
 
+  init_positions();
   mp3->begin(file, out);
 
   print_memory_info();
