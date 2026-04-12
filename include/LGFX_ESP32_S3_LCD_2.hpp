@@ -1,3 +1,5 @@
+#pragma once
+
 #include <LovyanGFX.hpp>
 #include <driver/ledc.h>
 
