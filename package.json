@@ -1,0 +1,15 @@
+{
+  "name": "cmake_wasm",
+  "version": "1.0.0",
+  "description": "# Step",
+  "main": "index.js",
+  "scripts": {
+    "make": "cd build && emmake make"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
+}

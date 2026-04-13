@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "paths": {
+      "*": ["./node_modules/*", "./js/*"]
+    },
+    "checkJs": true,
+    "allowJs": true
+  },
+  "include": ["js/**/*", "lgfx_wasm.html"],
+  "exclude": ["node_modules", "build"]
+}

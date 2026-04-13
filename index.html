@@ -1,0 +1,86 @@
+<html>
+
+<head>
+	<meta name='viewport'
+		content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no' />
+	<link rel="stylesheet" href="style.css">
+	<style type="text/css">
+		:root {
+			--width: 320px;
+			--height: 240px;
+		}
+
+		html,
+		body {
+			margin: 0;
+			width: 100%;
+			height: 100%;
+			min-width: 100%;
+			min-height: 100%;
+			font-family: Arial, Helvetica, sans-serif;
+		}
+
+		body {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			background-color: #464d50;
+			gap: 0.5em;
+		}
+
+		.button {
+			border: 1px solid rgb(47, 52, 53);
+			border-radius: 3px;
+			font-size: 2em;
+			display: inline-block;
+			padding: 6px 12px;
+			cursor: pointer;
+			background-color: #353a3b;
+			width: fit-content;
+		}
+
+
+		#output {
+			width: calc(var(--width) * 2);
+			height: calc(var(--height) * 2);
+			padding: 0.6em;
+			background-color: #121414;
+			border-radius: 4px;
+		}
+
+		#canvas {
+			width: 100%;
+			height: 100%;
+			image-rendering: pixelated;
+			image-rendering: crisp-edges;
+			-ms-interpolation-mode: nearest-neighbor;
+			object-fit: contain;
+		}
+	</style>
+	<script type="module" lang="ts" src="js/main.ts"></script>
+</head>
+
+<body>
+	<div class="flex">
+		<div class="flex-col align-center">
+			<div id="output">
+				<canvas id="canvas"></canvas>
+			</div>
+			<div>
+				<button id="clear-btn" class="button">
+					Reset&nbsp;
+				</button>
+				<label for="file-input" class="button">
+					Upload
+					<input id="file-input" type="file" accept=".zip,.adofai" style="display: none;" on />
+				</label>
+			</div>
+		</div>
+		<div class="container">
+			
+		</div>
+	</div>
+</body>
+
+</html>
