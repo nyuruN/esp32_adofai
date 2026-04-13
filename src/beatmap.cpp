@@ -16,8 +16,6 @@ void prepare() {
 
 }
 void render(LGFX_Sprite* sprite) {
-  sprite->clear(lcd.color332(80, 80, 80));
-
   DrawData::sprite = sprite;
   DrawData::width = sprite->width();
   DrawData::height = sprite->height();
@@ -40,6 +38,7 @@ void hit() {
   // - diff: late hit
   float diff = angle_next - angle_progress;
 
+  /*
   if (abs(diff) > 60.0) {
     printf("Miss/Loss: %.2f\n", diff);
     return;
@@ -50,6 +49,7 @@ void hit() {
   } else {
     printf("perfect: %.2f\n", diff);
   }
+  */
 
   current_floor++;
   current_planet = !current_planet;

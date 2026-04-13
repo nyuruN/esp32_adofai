@@ -5,11 +5,12 @@
 
 #ifdef __EMSCRIPTEN__
 #include <LGFX_AUTODETECT.hpp>
+inline LGFX lcd(320, 240);
 #else
 #include "LGFX_ESP32_S3_LCD_2.hpp"
+inline LGFX lcd;
 #endif
 
-inline LGFX lcd(320, 240);
 inline LGFX_Sprite _sprites[2];
 
 inline static void setup_display(void)
@@ -34,6 +35,25 @@ inline static void setup_display(void)
   {
     fail = !_sprites[i].createSprite(lcd_width, lcd_height);
   }
+
+#if defined (ESP_PLATFORM)
+  if (fail)
+  {
+    fail = false;
+    for (std::uint32_t i = 0; !fail && i < 2; ++i)
+    {
+      _sprites[i].setPsram(true);
+      fail = !_sprites[i].createSprite(lcd_width, lcd_height);
+    }
+
+    if (fail)
+    {
+      lcd.print("createSprite fail...");
+      lgfx::delay(3000);
+    }
+  }
+#endif
+
 }
 
 // Perform partial refresh

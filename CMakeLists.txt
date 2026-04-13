@@ -6,10 +6,10 @@ set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -g -s USE_SDL=2")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories(../../../LovyanGFX/src/)
-include_directories(src/)
+include_directories(include/)
 
 file(GLOB MY_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS 
-    *.cpp
+    LGFX_WASM.cpp
     src/*.cpp
     ../../../LovyanGFX/src/lgfx/Fonts/efont/*.c
     ../../../LovyanGFX/src/lgfx/Fonts/IPA/*.c
