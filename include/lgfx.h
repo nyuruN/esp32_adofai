@@ -19,7 +19,8 @@ inline static void setup_display(void)
 
   lcd.startWrite();
   lcd.setColorDepth(8);
-  if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
+  if (lcd.width() < lcd.height())
+    lcd.setRotation(lcd.getRotation() ^ 1);
 
   auto lcd_width = lcd.width();
   auto lcd_height = lcd.height();
@@ -36,7 +37,7 @@ inline static void setup_display(void)
     fail = !_sprites[i].createSprite(lcd_width, lcd_height);
   }
 
-#if defined (ESP_PLATFORM)
+#if defined(ESP_PLATFORM)
   if (fail)
   {
     fail = false;
@@ -53,46 +54,51 @@ inline static void setup_display(void)
     }
   }
 #endif
-
 }
 
 // Perform partial refresh
-inline static void diffdraw(LGFX_Sprite* sp0, LGFX_Sprite* sp1)
+inline static void diffdraw(LGFX_Sprite *sp0, LGFX_Sprite *sp1)
 {
   union
   {
-    std::uint32_t* s32;
-    std::uint8_t* s;
+    std::uint32_t *s32;
+    std::uint8_t *s;
   };
   union
   {
-    std::uint32_t* p32;
-    std::uint8_t* p;
+    std::uint32_t *p32;
+    std::uint8_t *p;
   };
-  s32 = (std::uint32_t*)sp0->getBuffer();
-  p32 = (std::uint32_t*)sp1->getBuffer();
+  s32 = (std::uint32_t *)sp0->getBuffer();
+  p32 = (std::uint32_t *)sp1->getBuffer();
 
-  auto width  = sp0->width();
+  auto width = sp0->width();
   auto height = sp0->height();
 
-  auto w32 = (width+3) >> 2;
+  auto w32 = (width + 3) >> 2;
   std::int32_t y = 0;
   do
   {
     std::int32_t x32 = 0;
     do
     {
-      while (s32[x32] == p32[x32] && ++x32 < w32);
-      if (x32 == w32) break;
+      while (s32[x32] == p32[x32] && ++x32 < w32)
+        ;
+      if (x32 == w32)
+        break;
 
       std::int32_t xs = x32 << 2;
-      while (s[xs] == p[xs]) ++xs;
+      while (s[xs] == p[xs])
+        ++xs;
 
-      while (++x32 < w32 && s32[x32] != p32[x32]);
+      while (++x32 < w32 && s32[x32] != p32[x32])
+        ;
 
       std::int32_t xe = (x32 << 2) - 1;
-      if (xe >= width) xe = width - 1;
-      while (s[xe] == p[xe]) --xe;
+      if (xe >= width)
+        xe = width - 1;
+      while (s[xe] == p[xe])
+        --xe;
 
       lcd.pushImage(xs, y, xe - xs + 1, 1, &s[xs]);
     } while (x32 < w32);
