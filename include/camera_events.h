@@ -41,9 +41,8 @@ namespace CameraEvents {
       Beatmap::rotation = e->camera_rotation.rotation;
       break;
 		case EventType::CameraOffset:
-			Beatmap::offset_x = e->camera_offset.offset_x / 1000.0f * Beatmap::beat_radius;
-      //printf("offset: %d\n", e->camera_offset.offset_y);
-			Beatmap::offset_y = e->camera_offset.offset_y / 1000.0f * Beatmap::beat_radius;
+			Beatmap::offset_x = e->camera_offset.offset_x / 1300.0f * Beatmap::beat_radius;
+			Beatmap::offset_y = e->camera_offset.offset_y / 1300.0f * Beatmap::beat_radius;
     default:
       break;
     }
@@ -61,7 +60,7 @@ namespace CameraEvents {
       switch (event->type)
       {
       case EventType::ShakeScreen:
-        *camera_x += sin(t * e->shake_screen.intensity) * (float)Beatmap::beat_radius * (float)e->shake_screen.strength / 100.0f;
+        *camera_x += sin(t * e->shake_screen.intensity) * (float)Beatmap::beat_radius * ((float)e->shake_screen.strength / 450.0f);
         break;
       case EventType::CameraZoom:
         *zoom += (e->camera_zoom.zoom / 1000.0f - *zoom) * p;
@@ -70,8 +69,8 @@ namespace CameraEvents {
         *rotation += (e->camera_rotation.rotation / 1000.0f - *rotation) * p;
         break;
       case EventType::CameraOffset:
-        *camera_x += (e->camera_offset.offset_x / 1000.0f) * Beatmap::beat_radius * p;
-        *camera_y += (e->camera_offset.offset_y / 1000.0f) * Beatmap::beat_radius * p;
+        *camera_x += (e->camera_offset.offset_x / 1300.0f) * Beatmap::beat_radius * p;
+        *camera_y += (e->camera_offset.offset_y / 1300.0f) * Beatmap::beat_radius * p;
       default:
         break;
       }

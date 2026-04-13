@@ -18,8 +18,8 @@ inline u16 TILE_BUF_SIZE = 0;
 // Constants
 constexpr u16 P_OFFSET = 24;
 constexpr u16 P_BUF_SIZE = 64;
-constexpr u8 beat_radius = 25;
-constexpr i32 planet_size = 8;
+constexpr u8 beat_radius = 40;
+constexpr i32 planet_size = 9;
 constexpr i32 tile_size = 10;
 constexpr u8 p0_color = lcd.color332(50, 40, 255);
 constexpr u8 p1_color = lcd.color332(255, 50, 40);
@@ -75,7 +75,7 @@ extern void next_position();
 // Calculate angle distance based on direction
 extern float angle_dst(float angle_from, float angle_to);
 // Reset beatmap state
-extern void clear();
+extern void clear(bool erase_data = false);
 extern void begin();
 
 };

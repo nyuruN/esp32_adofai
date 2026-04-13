@@ -16,8 +16,6 @@ void prepare() {
 
 }
 void render(LGFX_Sprite* sprite) {
-  sprite->clear(lcd.color332(80, 80, 80));
-
   DrawData::sprite = sprite;
   DrawData::width = sprite->width();
   DrawData::height = sprite->height();
@@ -34,23 +32,45 @@ void render(LGFX_Sprite* sprite) {
   draw_tiles();
   draw_planets();
 }
+void hit() {
+  // Allow angle_progress to go in negatives to compensate off timing
+  // + diff: early hit
+  // - diff: late hit
+  float diff = angle_next - angle_progress;
+
+  /*
+  if (abs(diff) > 60.0) {
+    printf("Miss/Loss: %.2f\n", diff);
+    return;
+  } else if (abs(diff) > 45.0) {
+    printf("Early/Late: %.2f\n", diff);
+  } else if (abs(diff) > 30.0) {
+    printf("E/LPerfect: %.2f\n", diff);
+  } else {
+    printf("perfect: %.2f\n", diff);
+  }
+  */
+
+  current_floor++;
+  current_planet = !current_planet;
+  angle_progress = -diff;
+  current_angle = angle_data[current_floor - 1] - 180.0 + diff * (current_direction ? -1 : 1); // 180 for planet switch, diff for compensation
+  if (tile_data[current_floor] & TILE_TWIRL) current_direction = !current_direction;
+
+  // The correct angle distance
+  angle_next = angle_dst(angle_data[current_floor - 1] - 180, angle_data[current_floor]);
+  next_position();
+
+  // Camera pulse
+  pulse = 1.02;
+
+  // traverse events
+  Events::next_floor();
+}
 void update(float delta_time) {
   { // auto hit logic
     if (angle_progress > angle_next && !(current_floor >= (TILE_BUF_SIZE - 1))) {
-      current_floor++;
-      current_planet = !current_planet;
-      angle_progress = 0.0;
-      current_angle = angle_data[current_floor - 1] - 180.0;
-      if (tile_data[current_floor] & TILE_TWIRL) current_direction = !current_direction;
-
-      angle_next = angle_dst(current_angle, angle_data[current_floor]);
-      next_position();
-
-      // Camera pulse
-      pulse = 1.02;
-
-      // traverse events
-      Events::next_floor();
+      hit();
     }
   }
 
@@ -98,29 +118,6 @@ void draw_tiles() {
     if (idx < 0) idx += P_BUF_SIZE;
     else idx = idx % P_BUF_SIZE;
 
-    //i16 tile_x = positions[idx][0];
-    //i16 tile_y = positions[idx][1];
-    float tile_x = positions[idx][0];
-    float tile_y = positions[idx][1];
-
-    float c = cos(angle_data[floor_idx] * M_PI / 180.0f);
-    float s = sin(angle_data[floor_idx] * M_PI / 180.0f);
-    float mid_x = tile_x + c * beat_radius / 1.0f; 
-    float mid_y = tile_y + s * beat_radius / 1.0f; 
-    // b r corner
-    float p0x = tile_x + s * tile_size;
-    float p0y = tile_y + -c * tile_size;
-    // b l corner
-    float p1x = tile_x - s * tile_size;
-    float p1y = tile_y - -c * tile_size;
-    // t r corner
-    float p2x = mid_x + s * tile_size;
-    float p2y = mid_y + -c * tile_size;
-    // t l corner
-    float p3x = mid_x - s * tile_size;
-    float p3y = mid_y - -c * tile_size;
-
-
     u8 _tile_color = tile_color;
     u8 border_color = lcd.color332(20, 20, 20);
     const u8 _tile_data = tile_data[floor_idx];
@@ -138,25 +135,74 @@ void draw_tiles() {
       border_color = lcd.color332(50, 250, 50);
     }
 
+    //i16 tile_x = positions[idx][0];
+    //i16 tile_y = positions[idx][1];
+    float tile_x = positions[idx][0];
+    float tile_y = positions[idx][1];
+
+    float c = cos(angle_data[floor_idx] * M_PI / 180.0f);
+    float s = sin(angle_data[floor_idx] * M_PI / 180.0f);
+    float mid_x = tile_x + c * beat_radius / 2.0f; 
+    float mid_y = tile_y + s * beat_radius / 2.0f; 
+    // b r corner
+    float p0x = tile_x + s * tile_size;
+    float p0y = tile_y + -c * tile_size;
+    // b l corner
+    float p1x = tile_x - s * tile_size;
+    float p1y = tile_y - -c * tile_size;
+    // t r corner
+    float p2x = mid_x + s * tile_size;
+    float p2y = mid_y + -c * tile_size;
+    // t l corner
+    float p3x = mid_x - s * tile_size;
+    float p3y = mid_y - -c * tile_size;
+
+    float pc = cos((angle_data[floor_idx - 1] - 180) * M_PI / 180.0f);
+    float ps = sin((angle_data[floor_idx - 1] - 180) * M_PI / 180.0f);
+    float pmid_x = tile_x + pc * beat_radius / 2.0f; 
+    float pmid_y = tile_y + ps * beat_radius / 2.0f; 
+    // b r corner
+    float p4x = tile_x + ps * tile_size;
+    float p4y = tile_y + -pc * tile_size;
+    // b l corner
+    float p5x = tile_x - ps * tile_size;
+    float p5y = tile_y - -pc * tile_size;
+    // t r corner
+    float p6x = pmid_x + ps * tile_size;
+    float p6y = pmid_y + -pc * tile_size;
+    // t l corner
+    float p7x = pmid_x - ps * tile_size;
+    float p7y = pmid_y - -pc * tile_size;
+
     camera_transform(&tile_x, &tile_y);
     camera_transform(&p0x, &p0y);
     camera_transform(&p1x, &p1y);
     camera_transform(&p2x, &p2y);
     camera_transform(&p3x, &p3y);
     camera_transform(&mid_x, &mid_y);
+    camera_transform(&p4x, &p4y);
+    camera_transform(&p5x, &p5y);
+    camera_transform(&p6x, &p6y);
+    camera_transform(&p7x, &p7y);
+    camera_transform(&pmid_x, &pmid_y);
 
     //DrawData::sprite->fillCircle(tile_x, tile_y, tile_size * DrawData::_zoom + 1, border_color);
-    DrawData::sprite->fillCircle(tile_x, tile_y, (tile_size * 1.15) * DrawData::_zoom, border_color);
+    //DrawData::sprite->fillCircle(tile_x, tile_y, (tile_size * 1.15) * DrawData::_zoom, border_color);
     DrawData::sprite->fillCircle(tile_x, tile_y, tile_size * DrawData::_zoom, _tile_color);
-    ////
-    //DrawData::sprite->drawWedgeLine(tile_x, tile_y, mid_x, mid_y, tile_size * DrawData::_zoom, tile_size * DrawData::_zoom, _tile_color);
-
-    /*
+    
     DrawData::sprite->fillTriangle(p0x, p0y, p1x, p1y, p2x, p2y, _tile_color);
     DrawData::sprite->fillTriangle(p1x, p1y, p2x, p2y, p3x, p3y, _tile_color);
+    DrawData::sprite->fillTriangle(p4x, p4y, p5x, p5y, p6x, p6y, _tile_color);
+    DrawData::sprite->fillTriangle(p5x, p5y, p6x, p6y, p7x, p7y, _tile_color);
+    /*
     DrawData::sprite->drawLine(p0x, p0y, p2x, p2y, border_color);
     DrawData::sprite->drawLine(p1x, p1y, p3x, p3y, border_color);
+    DrawData::sprite->drawLine(p4x, p4y, p6x, p6y, border_color);
+    DrawData::sprite->drawLine(p5x, p5y, p7x, p7y, border_color);
     */
+
+    DrawData::sprite->drawLine(p2x, p2y, p3x, p3y, border_color);
+    
   }
 }
 // Init positions, traverse tilemap relative to current floor
@@ -200,7 +246,7 @@ float angle_dst(float angle_from, float angle_to) {
     }
   }
 }
-void clear() {
+void clear(bool erase_data) {
   // Reset beatmap state
   current_floor = 0;
   current_events = 0;
@@ -216,9 +262,16 @@ void clear() {
   camera_y = 0.0;
   offset_x = 0.0;
   offset_y = 0.0;
-  zoom = 1.0;
+  zoom = 1.4;
   rotation = 0;
   pulse = 1.0;
+
+  // Pointers
+  Events::p_events = 0;
+  Beatmap::p_positions = 0;
+  CameraEvents::count = 0;
+  
+  if (!erase_data) return;
 
   // Buffer sizes
   Events::event_buf_size = 0;
@@ -229,10 +282,6 @@ void clear() {
   Beatmap::tile_data = nullptr;
   Events::events = nullptr;
 
-  // Pointers
-  Events::p_events = 0;
-  Beatmap::p_positions = 0;
-  CameraEvents::count = 0;
 }
 void set_event_data(u8* event_buf, u32 length) {
   Events::events = reinterpret_cast<Event*>(event_buf);

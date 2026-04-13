@@ -2,10 +2,59 @@
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
-#include "LGFX_ESP32_S3_LCD_2.hpp"
 
+#ifdef __EMSCRIPTEN__
+#include <LGFX_AUTODETECT.hpp>
+inline LGFX lcd(320, 240);
+#else
+#include "LGFX_ESP32_S3_LCD_2.hpp"
 inline LGFX lcd;
+#endif
+
 inline LGFX_Sprite _sprites[2];
+
+inline static void setup_display(void)
+{
+  lcd.init();
+
+  lcd.startWrite();
+  lcd.setColorDepth(8);
+  if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
+
+  auto lcd_width = lcd.width();
+  auto lcd_height = lcd.height();
+
+  for (std::uint32_t i = 0; i < 2; ++i)
+  {
+    _sprites[i].setTextSize(2);
+    _sprites[i].setColorDepth(8);
+  }
+
+  bool fail = false;
+  for (std::uint32_t i = 0; !fail && i < 2; ++i)
+  {
+    fail = !_sprites[i].createSprite(lcd_width, lcd_height);
+  }
+
+#if defined (ESP_PLATFORM)
+  if (fail)
+  {
+    fail = false;
+    for (std::uint32_t i = 0; !fail && i < 2; ++i)
+    {
+      _sprites[i].setPsram(true);
+      fail = !_sprites[i].createSprite(lcd_width, lcd_height);
+    }
+
+    if (fail)
+    {
+      lcd.print("createSprite fail...");
+      lgfx::delay(3000);
+    }
+  }
+#endif
+
+}
 
 // Perform partial refresh
 inline static void diffdraw(LGFX_Sprite* sp0, LGFX_Sprite* sp1)

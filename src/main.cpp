@@ -1,27 +1,55 @@
-#include <Arduino.h>
-
+﻿
+#include "events.h"
 #include "rust_typedef.h"
-#include "data.h"
 #include "beatmap.h"
-#include "lgfx.h"
 #include "camera_events.h"
+#include "lgfx.h"
+#include "data.h"
 
-LGFX_Sprite _background;
+#ifdef __EMSCRIPTEN__
+// If you write this, you can use drawBmpFile / drawJpgFile / drawPngFile
+// #include <stdio.h>
+
+// If you write this, you can use drawBmpUrl / drawJpgUrl / drawPngUrl ( for Windows )
+// #include <windows.h>
+// #include <winhttp.h>
+// #pragma comment (lib, "winhttp.lib")
+#include <emscripten.h>
+#include <emscripten/bind.h>
+extern "C" {
+  EMSCRIPTEN_KEEPALIVE
+  void clear(bool erase_data) { Beatmap::clear(erase_data); }
+  EMSCRIPTEN_KEEPALIVE
+  void set_beatmap_data(u8* angle_buf, u8* tile_buf, u32 length) { Beatmap::set_beatmap_data(angle_buf, tile_buf, length); }
+  EMSCRIPTEN_KEEPALIVE
+  void set_bpm(float v) { Beatmap::set_bpm(v); }
+  EMSCRIPTEN_KEEPALIVE
+  void set_event_data(u8* event_buf, u32 length) { Beatmap::set_event_data(event_buf, length); }
+  EMSCRIPTEN_KEEPALIVE
+  void play() { Beatmap::begin(); }
+  EMSCRIPTEN_KEEPALIVE
+  void hit() { Beatmap::hit(); }
+};
+#endif
 
 // Auxiliary variables
-static std::uint64_t pmillis = 0;
-static std::uint32_t _fps = 0;
-static std::uint32_t sec, psec;
-static std::uint32_t fps = 0, frame_count = 0;
+u64 pmillis = 0;
+u32 _fps = 0;
+u32 sec, psec;
+u32 fps = 0, frame_count = 0;
 bool _is_running;
-std::uint32_t _draw_count;
-std::uint32_t _loop_count;
+u32 _draw_count;
+u32 _loop_count;
+
+LGFX_Sprite _background;
 
 static void drawfunc(void)
 {
   LGFX_Sprite* sprite;
   std::size_t flip = _draw_count & 1;
   sprite = &(_sprites[flip]);
+
+  _background.pushSprite(sprite, 0, 0);
 
   Beatmap::render(sprite);
 
@@ -76,68 +104,12 @@ static void mainfunc(void)
 
   Beatmap::update(delta_time);
 
-  // misc.
   frame_count++;
   _loop_count++;
   _fps = fps;
 }
 
-void setup_display(void)
-{
-  lcd.init();
-
-  lcd.startWrite();
-  lcd.setColorDepth(8);
-  if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
-
-  auto lcd_width = lcd.width();
-  auto lcd_height = lcd.height();
-
-  for (std::uint32_t i = 0; i < 2; ++i)
-  {
-    _sprites[i].setTextSize(2);
-    _sprites[i].setColorDepth(8);
-  }
-
-  bool fail = false;
-  for (std::uint32_t i = 0; !fail && i < 2; ++i)
-  {
-    fail = !_sprites[i].createSprite(lcd_width, lcd_height);
-  }
-
-  if (fail)
-  {
-    fail = false;
-    for (std::uint32_t i = 0; !fail && i < 2; ++i)
-    {
-      _sprites[i].setPsram(true);
-      fail = !_sprites[i].createSprite(lcd_width, lcd_height);
-    }
-
-    if (fail)
-    {
-      fail = false;
-      if (lcd_width > 320) lcd_width = 320;
-      if (lcd_height > 240) lcd_height = 240;
-
-      for (std::uint32_t i = 0; !fail && i < 2; ++i)
-      {
-        _sprites[i].setPsram(true);
-        fail = !_sprites[i].createSprite(lcd_width, lcd_height);
-      }
-      if (fail)
-      {
-        lcd.print("createSprite fail...");
-        lgfx::delay(3000);
-      }
-    }
-  }
-
-  _is_running = true;
-  _draw_count = 0;
-  _loop_count = 0;
-}
-
+#if defined (ESP_PLATFORM)
 #include "esp_flash.h"
 #include "esp_log.h"
 
@@ -191,9 +163,12 @@ void print_memory_info(void) {
 AudioGeneratorMP3 *mp3;
 AudioFileSourceLittleFS *file;
 AudioOutputI2S *out;
+#endif
 
 void setup(void) {
   setup_display();
+
+#if defined (ESP_PLATFORM)
   LittleFS.begin(true, "/littlefs", 10, "littlefs");
 
   _background.setTextSize(2);
@@ -211,24 +186,34 @@ void setup(void) {
 
   mp3->begin(file, out);
 
+  print_memory_info();
+#else
+  _background.clear(lcd.color332(80, 80, 80));
+#endif
+
   Beatmap::clear();
 
   // Assign beatmap data
   Beatmap::set_beatmap_data(Data::angleData, Data::tileData, Data::tileCount);
   Beatmap::set_bpm(227);
+  Beatmap::set_bpm(20);
   Beatmap::set_event_data(Data::eventData, Data::eventCount);
 
   Beatmap::begin();
 
-  print_memory_info();
+  _is_running = true;
+  _draw_count = 0;
+  _loop_count = 0;
 }
 
 void loop(void) {
+#if defined (ESP_PLATFORM)
   if (mp3->isRunning()) {
     if (!mp3->loop()) {
       mp3->stop();
     }
   }
+#endif
   mainfunc();
   drawfunc();
 }
