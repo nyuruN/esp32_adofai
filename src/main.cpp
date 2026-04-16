@@ -5,6 +5,7 @@
 #include "active_events.h"
 #include "lgfx.h"
 #include "data.h"
+#include "app.h"
 
 #ifdef __EMSCRIPTEN__
 // If you write this, you can use drawBmpFile / drawJpgFile / drawPngFile
@@ -33,36 +34,35 @@ extern "C"
 };
 #endif
 
+App app;
+
 // Auxiliary variables
 u64 pmillis = 0;
-u32 _fps = 0;
 u32 sec, psec;
 u32 fps = 0, frame_count = 0;
-bool _is_running;
-u32 _draw_count;
-u32 _loop_count;
+u32 draw_count = 0;
 
 LGFX_Sprite _background;
 
-static void drawfunc(void)
+void drawfunc(void)
 {
   LGFX_Sprite *sprite;
-  std::size_t flip = _draw_count & 1;
+  std::size_t flip = draw_count & 1;
   sprite = &(_sprites[flip]);
 
   _background.pushSprite(sprite, 0, 0);
 
-  BeatmapPlayer::render(sprite);
+  app.render(sprite);
 
   {
     // Debug info
     sprite->setTextColor(TFT_WHITE);
     sprite->setCursor(0, 0);
-    sprite->printf("fps:%d", (int)_fps);
+    sprite->printf("fps:%d", (int)fps);
     sprite->setCursor(0, 20);
     sprite->printf("dir:%d", (int)BeatmapPlayer::current_angle);
     sprite->setCursor(0, 40);
-    sprite->printf("next:%d", (int)BeatmapPlayer::angle_data[current_floor]);
+    sprite->printf("next:%d", (int)BeatmapPlayer::angleData[current_floor]);
     sprite->setCursor(0, 60);
     sprite->printf("prog:%d", (int)BeatmapPlayer::angle_progress);
     sprite->setCursor(0, 80);
@@ -70,7 +70,7 @@ static void drawfunc(void)
     sprite->setCursor(0, 100);
     sprite->printf("floor:%d", (int)BeatmapPlayer::current_floor);
     sprite->setCursor(0, 120);
-    sprite->printf("bpm:%d", (int)BeatmapPlayer::bpm);
+    sprite->printf("bpm:%.1f", BeatmapPlayer::bpm);
     sprite->setCursor(0, 140);
     sprite->printf("pE:%d", (int)Events::p_events);
     sprite->setCursor(0, 160);
@@ -83,16 +83,16 @@ static void drawfunc(void)
     sprite->printf("%.2f,%.2f", (BeatmapPlayer::DrawData::_camera_x - BeatmapPlayer::camera_x), (BeatmapPlayer::DrawData::_camera_y - BeatmapPlayer::camera_y));
 
     sprite->setCursor(185, 0);
-    sprite->printf("tiles: % 3d", BeatmapPlayer::TILE_BUF_SIZE);
+    sprite->printf("tiles: % 3d", BeatmapPlayer::tileCount);
     sprite->setCursor(185, 20);
     sprite->printf("events:% 3d", Events::event_buf_size);
   }
 
   diffdraw(&_sprites[flip], &_sprites[!flip]);
-  ++_draw_count;
+  draw_count++;
 }
 
-static void mainfunc(void)
+void mainfunc(void)
 {
   float delta_time = (lgfx::millis() - pmillis) / 1000.0;
   pmillis = lgfx::millis();
@@ -104,11 +104,9 @@ static void mainfunc(void)
     frame_count = 0;
   }
 
-  BeatmapPlayer::update(delta_time);
+  app.update(delta_time);
 
   frame_count++;
-  _loop_count++;
-  _fps = fps;
 }
 
 #if defined(ESP_PLATFORM)
@@ -204,19 +202,7 @@ void setup(void)
   _background.clear(lcd.color332(80, 80, 80));
 #endif
 
-  BeatmapPlayer::clear();
-
-  // Assign beatmap data
-  BeatmapPlayer::set_beatmap_data(Data::angleData, Data::tileData, Data::tileCount);
-  BeatmapPlayer::set_bpm(227);
-  BeatmapPlayer::set_bpm(20);
-  BeatmapPlayer::set_event_data(Data::eventData, Data::eventCount);
-
-  BeatmapPlayer::begin();
-
-  _is_running = true;
-  _draw_count = 0;
-  _loop_count = 0;
+  app.setup();
 }
 
 void loop(void)

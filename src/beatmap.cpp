@@ -58,12 +58,12 @@ namespace BeatmapPlayer
     current_floor++;
     current_planet = !current_planet;
     angle_progress = -diff;
-    current_angle = angle_data[current_floor - 1] - 180.0 + diff * (current_direction ? -1 : 1); // 180 for planet switch, diff for compensation
-    if (tile_data[current_floor] & TILE_TWIRL)
+    current_angle = angleData[current_floor - 1] - 180.0 + diff * (current_direction ? -1 : 1); // 180 for planet switch, diff for compensation
+    if (tileData[current_floor] & TILE_TWIRL)
       current_direction = !current_direction;
 
     // The correct angle distance
-    angle_next = angle_dst(angle_data[current_floor - 1] - 180, angle_data[current_floor]);
+    angle_next = angle_dst(angleData[current_floor - 1] - 180, angleData[current_floor]);
     next_position();
 
     // Camera pulse
@@ -75,7 +75,7 @@ namespace BeatmapPlayer
   void update(float delta_time)
   {
     { // auto hit logic
-      if (angle_progress > angle_next && !(current_floor >= (TILE_BUF_SIZE - 1)))
+      if (angle_progress > angle_next && !(current_floor >= (tileCount - 1)))
       {
         hit();
       }
@@ -95,16 +95,16 @@ namespace BeatmapPlayer
     Events::update();
 
     // Camera smoothing
-    camera_x += (positions[(p_positions + 1) % P_BUF_SIZE][0] - camera_x) * delta_time * 1.0;
-    camera_y += (positions[(p_positions + 1) % P_BUF_SIZE][1] - camera_y) * delta_time * 1.0;
+    camera_x += (tiledrawdata[(p_tiledrawdata + 1) % P_TILES].x - camera_x) * delta_time * 1.0;
+    camera_y += (tiledrawdata[(p_tiledrawdata + 1) % P_TILES].y - camera_y) * delta_time * 1.0;
     // Camera pulse
     pulse = pulse + (1 - pulse) * delta_time * 4.0;
     ActiveEvents::update(delta_time * 1000);
   }
   void draw_planets()
   {
-    i16 attractor_x = positions[p_positions][0];
-    i16 attractor_y = positions[p_positions][1];
+    i16 attractor_x = tiledrawdata[p_tiledrawdata].x;
+    i16 attractor_y = tiledrawdata[p_tiledrawdata].y;
     i16 orbit_x = attractor_x + cos(current_angle * 3.14159 / 180) * beat_radius;
     i16 orbit_y = attractor_y + sin(current_angle * 3.14159 / 180) * beat_radius;
 
@@ -120,46 +120,36 @@ namespace BeatmapPlayer
     DrawData::sprite->setTextColor(TFT_BLACK);
 
     // Draw tiles
-    for (i8 i = 0; i < P_BUF_SIZE; i++)
+    for (i8 i = 0; i < P_TILES; i++)
     {
-      const u16 floor_idx = current_floor + (P_BUF_SIZE - 1 - P_OFFSET) - i;
-      if (floor_idx < 0 || floor_idx >= TILE_BUF_SIZE)
+      const u16 floor_idx = current_floor + (P_TILES - 1 - P_PLAYER_OFFSET) - i;
+      if (floor_idx < 0 || floor_idx >= tileCount)
         continue; // Clip invalid floors
 
-      i8 idx = (i8)p_positions + (P_BUF_SIZE - 1 - P_OFFSET) - i;
+      i8 idx = (i8)p_tiledrawdata + (P_TILES - 1 - P_PLAYER_OFFSET) - i;
       if (idx < 0)
-        idx += P_BUF_SIZE;
+        idx += P_TILES;
       else
-        idx = idx % P_BUF_SIZE;
+        idx = idx % P_TILES;
 
       u8 _tile_color = tile_color;
       u8 border_color = lcd.color332(20, 20, 20);
-      const u8 _tile_data = tile_data[floor_idx];
+      const u8 _tileData = tileData[floor_idx];
 
-      if (_tile_data & TILE_TWIRL)
-      {
+      if (_tileData & TILE_TWIRL)
         border_color = lcd.color332(250, 50, 50);
-      }
-      if (_tile_data & TILE_SPEEDDOWN)
-      {
-        _tile_color = lcd.color332(80, 80, 200);
-      }
-      if (_tile_data & TILE_SPEEDUP)
-      {
-        _tile_color = lcd.color332(200, 80, 80);
-      }
-      if (_tile_data & TILE_CHECKPOINT)
-      {
+      if (_tileData & TILE_CHECKPOINT)
         border_color = lcd.color332(50, 250, 50);
-      }
+      if (_tileData & TILE_SPEEDDOWN)
+        _tile_color = lcd.color332(80, 80, 200);
+      if (_tileData & TILE_SPEEDUP)
+        _tile_color = lcd.color332(200, 80, 80);
 
-      // i16 tile_x = positions[idx][0];
-      // i16 tile_y = positions[idx][1];
-      float tile_x = positions[idx][0];
-      float tile_y = positions[idx][1];
+      float tile_x = tiledrawdata[idx].x;
+      float tile_y = tiledrawdata[idx].y;
 
-      float c = cos(angle_data[floor_idx] * M_PI / 180.0f);
-      float s = sin(angle_data[floor_idx] * M_PI / 180.0f);
+      float c = cos(angleData[floor_idx] * M_PI / 180.0f);
+      float s = sin(angleData[floor_idx] * M_PI / 180.0f);
       float mid_x = tile_x + c * beat_radius / 2.0f;
       float mid_y = tile_y + s * beat_radius / 2.0f;
       // b r corner
@@ -175,8 +165,8 @@ namespace BeatmapPlayer
       float p3x = mid_x - s * tile_size;
       float p3y = mid_y - -c * tile_size;
 
-      float pc = cos((angle_data[floor_idx - 1] - 180) * M_PI / 180.0f);
-      float ps = sin((angle_data[floor_idx - 1] - 180) * M_PI / 180.0f);
+      float pc = cos((angleData[floor_idx - 1] - 180) * M_PI / 180.0f);
+      float ps = sin((angleData[floor_idx - 1] - 180) * M_PI / 180.0f);
       float pmid_x = tile_x + pc * beat_radius / 2.0f;
       float pmid_y = tile_y + ps * beat_radius / 2.0f;
       // b r corner
@@ -204,8 +194,6 @@ namespace BeatmapPlayer
       camera_transform(&p7x, &p7y);
       camera_transform(&pmid_x, &pmid_y);
 
-      // DrawData::sprite->fillCircle(tile_x, tile_y, tile_size * DrawData::_zoom + 1, border_color);
-      // DrawData::sprite->fillCircle(tile_x, tile_y, (tile_size * 1.15) * DrawData::_zoom, border_color);
       DrawData::sprite->fillCircle(tile_x, tile_y, tile_size * DrawData::_zoom, _tile_color);
 
       DrawData::sprite->fillTriangle(p0x, p0y, p1x, p1y, p2x, p2y, _tile_color);
@@ -222,35 +210,35 @@ namespace BeatmapPlayer
       DrawData::sprite->drawLine(p2x, p2y, p3x, p3y, border_color);
     }
   }
-  // Init positions, traverse tilemap relative to current floor
-  void init_positions(void)
+  // Init tiledrawdata, traverse tilemap relative to current floor
+  void init_tiledrawdata(void)
   {
-    positions[p_positions][0] = 0;
-    positions[p_positions][1] = 0;
-    for (u8 i = 1; i <= (P_BUF_SIZE - 1 - P_OFFSET); i++)
+    tiledrawdata[p_tiledrawdata].x = 0;
+    tiledrawdata[p_tiledrawdata].y = 0;
+    for (u8 i = 1; i <= (P_TILES - 1 - P_PLAYER_OFFSET); i++)
     {
-      if (current_floor + i >= TILE_BUF_SIZE)
+      if (current_floor + i >= tileCount)
         break;
-      u8 idx = (p_positions + i) % P_BUF_SIZE;
-      positions[idx][0] = positions[(idx - (i8)1) + (1 > idx ? P_BUF_SIZE : 0)][0] + cos(angle_data[current_floor + i - 1] * 3.14159 / 180) * beat_radius;
-      positions[idx][1] = positions[(idx - (i8)1) + (1 > idx ? P_BUF_SIZE : 0)][1] + sin(angle_data[current_floor + i - 1] * 3.14159 / 180) * beat_radius;
+      u8 idx = (p_tiledrawdata + i) % P_TILES;
+      tiledrawdata[idx].x = tiledrawdata[(idx - (i8)1) + (1 > idx ? P_TILES : 0)].x + cos(angleData[current_floor + i - 1] * 3.14159 / 180) * beat_radius;
+      tiledrawdata[idx].y = tiledrawdata[(idx - (i8)1) + (1 > idx ? P_TILES : 0)].y + sin(angleData[current_floor + i - 1] * 3.14159 / 180) * beat_radius;
     }
-    for (u8 i = 1; i <= P_OFFSET; i++)
+    for (u8 i = 1; i <= P_PLAYER_OFFSET; i++)
     {
       if ((int)current_floor - i < 0)
         break;
-      u8 idx = ((i8)p_positions - i) + (i > p_positions ? P_BUF_SIZE : 0);
-      positions[idx][0] = positions[(idx + 1) % P_BUF_SIZE][0] + cos((angle_data[current_floor - i] + 180) * 3.14159 / 180) * beat_radius;
-      positions[idx][1] = positions[(idx + 1) % P_BUF_SIZE][1] + sin((angle_data[current_floor - i] + 180) * 3.14159 / 180) * beat_radius;
+      u8 idx = ((i8)p_tiledrawdata - i) + (i > p_tiledrawdata ? P_TILES : 0);
+      tiledrawdata[idx].x = tiledrawdata[(idx + 1) % P_TILES].x + cos((angleData[current_floor - i] + 180) * 3.14159 / 180) * beat_radius;
+      tiledrawdata[idx].y = tiledrawdata[(idx + 1) % P_TILES].y + sin((angleData[current_floor - i] + 180) * 3.14159 / 180) * beat_radius;
     }
   }
   void next_position(void)
   {
-    p_positions = (p_positions + 1) % P_BUF_SIZE;
-    u8 idx = (p_positions + (P_BUF_SIZE - 1 - P_OFFSET)) % P_BUF_SIZE;
-    u8 prev_idx = ((i8)idx - 1) + (1 > idx ? P_BUF_SIZE : 0);
-    positions[idx][0] = positions[prev_idx][0] + cos(angle_data[current_floor + (P_BUF_SIZE - 2 - P_OFFSET)] * 3.14159 / 180) * beat_radius;
-    positions[idx][1] = positions[prev_idx][1] + sin(angle_data[current_floor + (P_BUF_SIZE - 2 - P_OFFSET)] * 3.14159 / 180) * beat_radius;
+    p_tiledrawdata = (p_tiledrawdata + 1) % P_TILES;
+    u8 idx = (p_tiledrawdata + (P_TILES - 1 - P_PLAYER_OFFSET)) % P_TILES;
+    u8 prev_idx = ((i8)idx - 1) + (1 > idx ? P_TILES : 0);
+    tiledrawdata[idx].x = tiledrawdata[prev_idx].x + cos(angleData[current_floor + (P_TILES - 2 - P_PLAYER_OFFSET)] * 3.14159 / 180) * beat_radius;
+    tiledrawdata[idx].y = tiledrawdata[prev_idx].y + sin(angleData[current_floor + (P_TILES - 2 - P_PLAYER_OFFSET)] * 3.14159 / 180) * beat_radius;
   }
   float angle_dst(float angle_from, float angle_to)
   {
@@ -291,7 +279,6 @@ namespace BeatmapPlayer
     current_direction = 0; // 0 = cw
     angle_progress = 0;
     angle_next = 0;
-    is_playing = false;
 
     // Camera
     camera_x = 0.0;
@@ -304,7 +291,7 @@ namespace BeatmapPlayer
 
     // Pointers
     Events::p_events = 0;
-    BeatmapPlayer::p_positions = 0;
+    BeatmapPlayer::p_tiledrawdata = 0;
     ActiveEvents::count = 0;
 
     if (!erase_data)
@@ -312,11 +299,11 @@ namespace BeatmapPlayer
 
     // Buffer sizes
     Events::event_buf_size = 0;
-    BeatmapPlayer::TILE_BUF_SIZE = 0;
+    BeatmapPlayer::tileCount = 0;
 
     // Buffers
-    BeatmapPlayer::angle_data = nullptr;
-    BeatmapPlayer::tile_data = nullptr;
+    BeatmapPlayer::angleData = nullptr;
+    BeatmapPlayer::tileData = nullptr;
     Events::events = nullptr;
   }
   void set_event_data(u8 *event_buf, u32 length)
@@ -326,9 +313,8 @@ namespace BeatmapPlayer
   }
   void begin()
   {
-    angle_next = angle_dst(current_angle, angle_data[current_floor]);
-    is_playing = true;
-    init_positions();
+    angle_next = angle_dst(current_angle, angleData[current_floor]);
+    init_tiledrawdata();
   }
 
 }

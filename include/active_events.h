@@ -44,8 +44,8 @@ namespace ActiveEvents
       BeatmapPlayer::rotation = e->camera_rotation.rotation;
       break;
     case EventType::CameraOffset:
-      BeatmapPlayer::offset_x = e->camera_offset.offset_x / 1300.0f * BeatmapPlayer::beat_radius;
-      BeatmapPlayer::offset_y = e->camera_offset.offset_y / 1300.0f * BeatmapPlayer::beat_radius;
+      BeatmapPlayer::offset_x = e->camera_offset.offset_x / 1500.0f * BeatmapPlayer::beat_radius;
+      BeatmapPlayer::offset_y = e->camera_offset.offset_y / 1500.0f * BeatmapPlayer::beat_radius;
     default:
       break;
     }
@@ -75,8 +75,8 @@ namespace ActiveEvents
         *rotation += (e->camera_rotation.rotation / 1000.0f - *rotation) * p;
         break;
       case EventType::CameraOffset:
-        *camera_x += (e->camera_offset.offset_x / 1300.0f) * BeatmapPlayer::beat_radius * p;
-        *camera_y += (e->camera_offset.offset_y / 1300.0f) * BeatmapPlayer::beat_radius * p;
+        *camera_x += (e->camera_offset.offset_x / 1500.0f) * BeatmapPlayer::beat_radius * p;
+        *camera_y += (e->camera_offset.offset_y / 1500.0f) * BeatmapPlayer::beat_radius * p;
       default:
         break;
       }

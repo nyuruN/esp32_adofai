@@ -10,13 +10,6 @@ namespace Events
 	{
 		while (events[p_events].floor < BeatmapPlayer::current_floor && p_events < event_buf_size)
 			p_events++;
-		/*
-		printf("===== Before =====\n");
-		printf("pEvents = %d\n", p_events);
-		printf("cFloor = %d\n", BeatmapPlayer::current_floor);
-		printf("ActiveEvents = %d\n", BeatmapPlayer::current_events);
-		printf("BPM = %d\n", BeatmapPlayer::bpm);
-		*/
 
 		for (BeatmapPlayer::current_events = 0; events[p_events + BeatmapPlayer::current_events].floor == BeatmapPlayer::current_floor; BeatmapPlayer::current_events++)
 		{
@@ -30,15 +23,8 @@ namespace Events
 			dispatch_event(event);
 			dispatched[BeatmapPlayer::current_events] = true;
 		}
-
-		/*
-		printf("===== After =====\n");
-		printf("pEvents = %d\n", p_events);
-		printf("cFloor = %d\n", BeatmapPlayer::current_floor);
-		printf("ActiveEvents = %d\n", BeatmapPlayer::current_events);
-		printf("BPM = %d\n", BeatmapPlayer::bpm);
-		*/
 	}
+	// Dispatch undispatched events
 	void update()
 	{
 		for (u8 i = 0; i < BeatmapPlayer::current_events; i++)

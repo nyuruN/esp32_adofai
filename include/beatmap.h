@@ -14,32 +14,35 @@ namespace BeatmapPlayer
 	constexpr u8 TILE_SPEEDDOWN = 0b00000100;
 	constexpr u8 TILE_CHECKPOINT = 0b00001000;
 
-	inline u16 TILE_BUF_SIZE = 0;
+	inline u32 tileCount = 0;
 
 	// Constants
-	constexpr u16 P_OFFSET = 24;
-	constexpr u16 P_BUF_SIZE = 64;
-	constexpr u8 beat_radius = 40;
-	constexpr i32 planet_size = 9;
-	constexpr i32 tile_size = 10;
+	constexpr u32 beat_radius = 40;
+	constexpr u32 planet_size = 9;
+	constexpr u32 tile_size = 10;
 	constexpr u8 p0_color = lcd.color332(50, 40, 255);
 	constexpr u8 p1_color = lcd.color332(255, 50, 40);
 	constexpr u8 tile_color = lcd.color332(200, 200, 200);
 
 	// States
 	inline u32 current_floor = 0;
-	inline u8 current_events = 0;
+	inline u32 current_events = 0;
 	inline float current_angle = 0;
 	inline bool current_planet = 0;	   // 0 = p0
 	inline bool current_direction = 0; // 0 = cw
-	inline u16 bpm = 227;
+	inline float bpm = 227;
 	inline float angle_progress = 0;
 	inline float angle_next = 0;
-	inline bool is_playing = false;
 
 	// Tilemap
-	inline u8 p_positions = 0; // Represents current_floor
-	inline i16 positions[P_BUF_SIZE][2] = {};
+	struct TileDrawData {
+		i16 x;
+		i16 y;
+	};
+	constexpr u32 P_PLAYER_OFFSET = 24;
+	constexpr u32 P_TILES = 64;
+	inline u32 p_tiledrawdata = 0; // Represents current_floor
+	inline TileDrawData tiledrawdata[P_TILES] = {};
 
 	// Camera
 	inline float camera_x;
@@ -53,8 +56,8 @@ namespace BeatmapPlayer
 	// Data recalculated on every draw call
 	namespace DrawData
 	{
-		inline u16 width = lcd.width();
-		inline u16 height = lcd.height();
+		inline u32 width = lcd.width();
+		inline u32 height = lcd.height();
 		inline LGFX_Sprite *sprite;
 		inline float _camera_x;
 		inline float _camera_y;
@@ -72,7 +75,7 @@ namespace BeatmapPlayer
 	extern void hit();
 	extern void draw_planets();
 	extern void draw_tiles();
-	extern void init_positions();
+	extern void init_tiledrawdata();
 	extern void next_position();
 	// Calculate angle distance based on direction
 	extern float angle_dst(float angle_from, float angle_to);
@@ -87,14 +90,14 @@ namespace BeatmapPlayer
 
 	// BeatmapPlayer data
 
-	inline i16 *angle_data = nullptr;
-	inline u8 *tile_data = nullptr;
+	inline i16 *angleData = nullptr;
+	inline u8 *tileData = nullptr;
 
 	inline void set_beatmap_data(u8 *angle_buf, u8 *tile_buf, u32 length)
 	{
-		angle_data = reinterpret_cast<i16 *>(angle_buf);
-		tile_data = tile_buf;
-		TILE_BUF_SIZE = length;
+		angleData = reinterpret_cast<i16 *>(angle_buf);
+		tileData = tile_buf;
+		tileCount = length;
 	}
 	inline void set_bpm(float v) { bpm = v; }
 	extern void set_event_data(u8 *event_buf, u32 length);
