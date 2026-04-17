@@ -3,17 +3,10 @@
 #include "events.h"
 #include "data.h"
 #include "accuracy_meter.h"
-
+#include "tilemap.h"
 
 namespace BeatmapPlayer
 {
-
-  template <typename T>
-  void camera_transform(T *x, T *y)
-  {
-    *x = ((*x - DrawData::_camera_x) * DrawData::rcos - (*y - DrawData::_camera_y) * DrawData::rsin) * DrawData::_zoom + DrawData::width / 2;
-    *y = ((*x - DrawData::_camera_x) * DrawData::rsin + (*y - DrawData::_camera_y) * DrawData::rcos) * DrawData::_zoom * (-1) + DrawData::width / 2;
-  }
 
   void prepare()
   {
@@ -33,7 +26,7 @@ namespace BeatmapPlayer
     DrawData::rcos = cos(DrawData::_rotation * 3.14159 / 180);
     DrawData::rsin = sin(DrawData::_rotation * 3.14159 / 180);
 
-    draw_tiles();
+    tilemap.render(sprite);
     draw_planets();
     meter.render(sprite);
   }
@@ -67,7 +60,7 @@ namespace BeatmapPlayer
 
     // The correct angle distance
     angle_next = angle_dst(angleData[current_floor - 1] - 180, angleData[current_floor]);
-    next_position();
+    tilemap.next_tile();
 
     // Camera pulse
     pulse = 1.02;
@@ -99,15 +92,15 @@ namespace BeatmapPlayer
     meter.update(delta_time);
 
     // Camera smoothing
-    camera_x += (tiledrawdata[(p_tiledrawdata + 1) % P_TILES].x - camera_x) * delta_time * 1.0;
-    camera_y += (tiledrawdata[(p_tiledrawdata + 1) % P_TILES].y - camera_y) * delta_time * 1.0;
+    camera_x += (tilemap.get_relative(1).x - camera_x) * delta_time * 1.0;
+    camera_y += (tilemap.get_relative(1).y - camera_y) * delta_time * 1.0;
     // Camera pulse
     pulse = pulse + (1 - pulse) * delta_time * 4.0;
   }
   void draw_planets()
   {
-    i16 attractor_x = tiledrawdata[p_tiledrawdata].x;
-    i16 attractor_y = tiledrawdata[p_tiledrawdata].y;
+    i16 attractor_x = tilemap.get_relative(0).x;
+    i16 attractor_y = tilemap.get_relative(0).y;
     i16 orbit_x = attractor_x + cos(current_angle * 3.14159 / 180) * beat_radius;
     i16 orbit_y = attractor_y + sin(current_angle * 3.14159 / 180) * beat_radius;
 
@@ -117,133 +110,6 @@ namespace BeatmapPlayer
     // Draw planets
     DrawData::sprite->fillCircle(attractor_x, attractor_y, planet_size * DrawData::_zoom, (current_planet ? p1_color : p0_color));
     DrawData::sprite->fillCircle(orbit_x, orbit_y, planet_size * DrawData::_zoom, (!current_planet ? p1_color : p0_color));
-  }
-  void draw_tiles()
-  {
-    DrawData::sprite->setTextColor(TFT_BLACK);
-
-    // Draw tiles
-    for (i8 i = 0; i < P_TILES; i++)
-    {
-      const u16 floor_idx = current_floor + (P_TILES - 1 - P_PLAYER_OFFSET) - i;
-      if (floor_idx < 0 || floor_idx >= tileCount)
-        continue; // Clip invalid floors
-
-      i8 idx = (i8)p_tiledrawdata + (P_TILES - 1 - P_PLAYER_OFFSET) - i;
-      if (idx < 0)
-        idx += P_TILES;
-      else
-        idx = idx % P_TILES;
-
-      u8 _tile_color = tile_color;
-      u8 border_color = lcd.color332(20, 20, 20);
-      const u8 _tileData = tileData[floor_idx];
-
-      if (_tileData & TILE_TWIRL)
-        border_color = lcd.color332(250, 50, 50);
-      if (_tileData & TILE_CHECKPOINT)
-        border_color = lcd.color332(50, 250, 50);
-      if (floor_idx <= current_floor)
-        _tile_color = active_tile_color;
-      if (_tileData & TILE_SPEEDDOWN)
-        _tile_color = lcd.color332(80, 80, 200);
-      if (_tileData & TILE_SPEEDUP)
-        _tile_color = lcd.color332(200, 80, 80);
-
-      float tile_x = tiledrawdata[idx].x;
-      float tile_y = tiledrawdata[idx].y;
-
-      float c = cos(angleData[floor_idx] * M_PI / 180.0f);
-      float s = sin(angleData[floor_idx] * M_PI / 180.0f);
-      float mid_x = tile_x + c * beat_radius / 2.0f;
-      float mid_y = tile_y + s * beat_radius / 2.0f;
-      // b r corner
-      float p0x = tile_x + s * tile_size;
-      float p0y = tile_y + -c * tile_size;
-      // b l corner
-      float p1x = tile_x - s * tile_size;
-      float p1y = tile_y - -c * tile_size;
-      // t r corner
-      float p2x = mid_x + s * tile_size;
-      float p2y = mid_y + -c * tile_size;
-      // t l corner
-      float p3x = mid_x - s * tile_size;
-      float p3y = mid_y - -c * tile_size;
-
-      float pc = cos((angleData[floor_idx - 1] - 180) * M_PI / 180.0f);
-      float ps = sin((angleData[floor_idx - 1] - 180) * M_PI / 180.0f);
-      float pmid_x = tile_x + pc * beat_radius / 2.0f;
-      float pmid_y = tile_y + ps * beat_radius / 2.0f;
-      // b r corner
-      float p4x = tile_x + ps * tile_size;
-      float p4y = tile_y + -pc * tile_size;
-      // b l corner
-      float p5x = tile_x - ps * tile_size;
-      float p5y = tile_y - -pc * tile_size;
-      // t r corner
-      float p6x = pmid_x + ps * tile_size;
-      float p6y = pmid_y + -pc * tile_size;
-      // t l corner
-      float p7x = pmid_x - ps * tile_size;
-      float p7y = pmid_y - -pc * tile_size;
-
-      camera_transform(&tile_x, &tile_y);
-      camera_transform(&p0x, &p0y);
-      camera_transform(&p1x, &p1y);
-      camera_transform(&p2x, &p2y);
-      camera_transform(&p3x, &p3y);
-      camera_transform(&mid_x, &mid_y);
-      camera_transform(&p4x, &p4y);
-      camera_transform(&p5x, &p5y);
-      camera_transform(&p6x, &p6y);
-      camera_transform(&p7x, &p7y);
-      camera_transform(&pmid_x, &pmid_y);
-
-      DrawData::sprite->fillCircle(tile_x, tile_y, tile_size * DrawData::_zoom, _tile_color);
-
-      DrawData::sprite->fillTriangle(p0x, p0y, p1x, p1y, p2x, p2y, _tile_color);
-      DrawData::sprite->fillTriangle(p1x, p1y, p2x, p2y, p3x, p3y, _tile_color);
-      DrawData::sprite->fillTriangle(p4x, p4y, p5x, p5y, p6x, p6y, _tile_color);
-      DrawData::sprite->fillTriangle(p5x, p5y, p6x, p6y, p7x, p7y, _tile_color);
-      /*
-      DrawData::sprite->drawLine(p0x, p0y, p2x, p2y, border_color);
-      DrawData::sprite->drawLine(p1x, p1y, p3x, p3y, border_color);
-      DrawData::sprite->drawLine(p4x, p4y, p6x, p6y, border_color);
-      DrawData::sprite->drawLine(p5x, p5y, p7x, p7y, border_color);
-      */
-
-      DrawData::sprite->drawLine(p2x, p2y, p3x, p3y, border_color);
-    }
-  }
-  // Init tiledrawdata, traverse tilemap relative to current floor
-  void init_tiledrawdata(void)
-  {
-    tiledrawdata[p_tiledrawdata].x = 0;
-    tiledrawdata[p_tiledrawdata].y = 0;
-    for (u8 i = 1; i <= (P_TILES - 1 - P_PLAYER_OFFSET); i++)
-    {
-      if (current_floor + i >= tileCount)
-        break;
-      u8 idx = (p_tiledrawdata + i) % P_TILES;
-      tiledrawdata[idx].x = tiledrawdata[(idx - (i8)1) + (1 > idx ? P_TILES : 0)].x + cos(angleData[current_floor + i - 1] * 3.14159 / 180) * beat_radius;
-      tiledrawdata[idx].y = tiledrawdata[(idx - (i8)1) + (1 > idx ? P_TILES : 0)].y + sin(angleData[current_floor + i - 1] * 3.14159 / 180) * beat_radius;
-    }
-    for (u8 i = 1; i <= P_PLAYER_OFFSET; i++)
-    {
-      if ((int)current_floor - i < 0)
-        break;
-      u8 idx = ((i8)p_tiledrawdata - i) + (i > p_tiledrawdata ? P_TILES : 0);
-      tiledrawdata[idx].x = tiledrawdata[(idx + 1) % P_TILES].x + cos((angleData[current_floor - i] + 180) * 3.14159 / 180) * beat_radius;
-      tiledrawdata[idx].y = tiledrawdata[(idx + 1) % P_TILES].y + sin((angleData[current_floor - i] + 180) * 3.14159 / 180) * beat_radius;
-    }
-  }
-  void next_position(void)
-  {
-    p_tiledrawdata = (p_tiledrawdata + 1) % P_TILES;
-    u8 idx = (p_tiledrawdata + (P_TILES - 1 - P_PLAYER_OFFSET)) % P_TILES;
-    u8 prev_idx = ((i8)idx - 1) + (1 > idx ? P_TILES : 0);
-    tiledrawdata[idx].x = tiledrawdata[prev_idx].x + cos(angleData[current_floor + (P_TILES - 2 - P_PLAYER_OFFSET)] * 3.14159 / 180) * beat_radius;
-    tiledrawdata[idx].y = tiledrawdata[prev_idx].y + sin(angleData[current_floor + (P_TILES - 2 - P_PLAYER_OFFSET)] * 3.14159 / 180) * beat_radius;
   }
   float angle_dst(float angle_from, float angle_to)
   {
@@ -295,9 +161,9 @@ namespace BeatmapPlayer
     pulse = 1.0;
 
     beatmap_events.clear();
+    tilemap.clear();
 
     // Pointers
-    BeatmapPlayer::p_tiledrawdata = 0;
 
     if (!erase_data)
       return;
@@ -317,7 +183,7 @@ namespace BeatmapPlayer
   void begin()
   {
     angle_next = angle_dst(current_angle, angleData[current_floor]);
-    init_tiledrawdata();
+    tilemap.init_tiledrawdata();
   }
 
 }

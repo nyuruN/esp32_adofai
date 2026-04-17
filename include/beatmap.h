@@ -35,6 +35,7 @@ namespace BeatmapPlayer
 	inline float angle_next = 0;
 
 	// Tilemap
+	/*
 	struct TileDrawData {
 		i16 x;
 		i16 y;
@@ -43,6 +44,7 @@ namespace BeatmapPlayer
 	constexpr u32 P_TILES = 64;
 	inline u32 p_tiledrawdata = 0; // Represents current_floor
 	inline TileDrawData tiledrawdata[P_TILES] = {};
+	*/
 
 	// Camera
 	inline float camera_x;
@@ -77,14 +79,18 @@ namespace BeatmapPlayer
 	extern void update(float delta_time);
 	extern void hit();
 	extern void draw_planets();
-	extern void draw_tiles();
-	extern void init_tiledrawdata();
-	extern void next_position();
 	// Calculate angle distance based on direction
 	extern float angle_dst(float angle_from, float angle_to);
 	// Reset beatmap state
 	extern void clear(bool erase_data = false);
 	extern void begin();
+
+	template <typename T>
+	void camera_transform(T *x, T *y)
+	{
+		*x = ((*x - DrawData::_camera_x) * DrawData::rcos - (*y - DrawData::_camera_y) * DrawData::rsin) * DrawData::_zoom + DrawData::width / 2;
+		*y = ((*x - DrawData::_camera_x) * DrawData::rsin + (*y - DrawData::_camera_y) * DrawData::rcos) * DrawData::_zoom * (-1) + DrawData::width / 2;
+	}
 
 };
 
