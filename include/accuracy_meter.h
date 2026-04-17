@@ -102,6 +102,6 @@ public:
         .accuracy = angle_diff,
         .timer = 255,
     };
-    p_data++;
+    p_data = wrap(p_data + 1);
   }
 };

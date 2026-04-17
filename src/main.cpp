@@ -2,7 +2,6 @@
 #include "events.h"
 #include "rust_typedef.h"
 #include "beatmap.h"
-#include "active_events.h"
 #include "lgfx.h"
 #include "data.h"
 #include "app.h"
@@ -62,7 +61,7 @@ void drawfunc(void)
     sprite->setCursor(0, 20);
     sprite->printf("dir:%d", (int)BeatmapPlayer::current_angle);
     sprite->setCursor(0, 40);
-    sprite->printf("next:%d", (int)BeatmapPlayer::angleData[current_floor]);
+    sprite->printf("next:%d", (int)BeatmapPlayer::angleData[BeatmapPlayer::current_floor]);
     sprite->setCursor(0, 60);
     sprite->printf("prog:%d", (int)BeatmapPlayer::angle_progress);
     sprite->setCursor(0, 80);
@@ -72,9 +71,9 @@ void drawfunc(void)
     sprite->setCursor(0, 120);
     sprite->printf("bpm:%.1f", BeatmapPlayer::bpm);
     sprite->setCursor(0, 140);
-    sprite->printf("pE:%d", (int)Events::p_events);
+    sprite->printf("pE:%d", (int)beatmap_events.p_events);
     sprite->setCursor(0, 160);
-    sprite->printf("pCE:%d", (int)ActiveEvents::count);
+    sprite->printf("pCE:%d", (int)beatmap_events.active_count);
     sprite->setCursor(0, 180);
     sprite->printf("zoom:%.2f", 1.0f / BeatmapPlayer::DrawData::_zoom);
     sprite->setCursor(0, 200);
@@ -85,7 +84,7 @@ void drawfunc(void)
     sprite->setCursor(185, 0);
     sprite->printf("tiles: % 3d", BeatmapPlayer::tileCount);
     sprite->setCursor(185, 20);
-    sprite->printf("events:% 3d", Events::event_buf_size);
+    sprite->printf("events:% 3d", beatmap_events.event_buf_size);
   }
 
   diffdraw(&_sprites[flip], &_sprites[!flip]);

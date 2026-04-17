@@ -1,10 +1,6 @@
 #pragma once
 
-#include "events.h"
-#include "beatmap.h"
-
-using namespace Events;
-using namespace BeatmapPlayer;
+#include "rust_typedef.h"
 
 namespace Data
 {

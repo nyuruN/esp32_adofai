@@ -1,7 +1,6 @@
 
 #include "beatmap.h"
 #include "events.h"
-#include "active_events.h"
 #include "data.h"
 #include "accuracy_meter.h"
 
@@ -29,7 +28,7 @@ namespace BeatmapPlayer
     DrawData::_camera_y = camera_y + offset_y;
     DrawData::_rotation = rotation;
 
-    ActiveEvents::apply(&DrawData::_camera_x, &DrawData::_camera_y, &DrawData::_rotation, &DrawData::_zoom);
+    beatmap_events.apply(&DrawData::_camera_x, &DrawData::_camera_y, &DrawData::_rotation, &DrawData::_zoom);
 
     DrawData::rcos = cos(DrawData::_rotation * 3.14159 / 180);
     DrawData::rsin = sin(DrawData::_rotation * 3.14159 / 180);
@@ -74,7 +73,7 @@ namespace BeatmapPlayer
     pulse = 1.02;
 
     // traverse events
-    Events::next_floor();
+    beatmap_events.next_floor();
   }
   void update(float delta_time)
   {
@@ -96,7 +95,7 @@ namespace BeatmapPlayer
       current_angle -= 360.0;
 
     // Event dispatch
-    Events::update();
+    beatmap_events.update(delta_time * 1000);
     meter.update(delta_time);
 
     // Camera smoothing
@@ -104,7 +103,6 @@ namespace BeatmapPlayer
     camera_y += (tiledrawdata[(p_tiledrawdata + 1) % P_TILES].y - camera_y) * delta_time * 1.0;
     // Camera pulse
     pulse = pulse + (1 - pulse) * delta_time * 4.0;
-    ActiveEvents::update(delta_time * 1000);
   }
   void draw_planets()
   {
@@ -296,27 +294,25 @@ namespace BeatmapPlayer
     rotation = 0;
     pulse = 1.0;
 
+    beatmap_events.clear();
+
     // Pointers
-    Events::p_events = 0;
     BeatmapPlayer::p_tiledrawdata = 0;
-    ActiveEvents::count = 0;
 
     if (!erase_data)
       return;
 
     // Buffer sizes
-    Events::event_buf_size = 0;
     BeatmapPlayer::tileCount = 0;
 
     // Buffers
     BeatmapPlayer::angleData = nullptr;
     BeatmapPlayer::tileData = nullptr;
-    Events::events = nullptr;
   }
   void set_event_data(u8 *event_buf, u32 length)
   {
-    Events::events = reinterpret_cast<Event *>(event_buf);
-    Events::event_buf_size = length;
+    beatmap_events.event_buf_size = length;
+    beatmap_events.events = reinterpret_cast<Event *>(event_buf);
   }
   void begin()
   {
