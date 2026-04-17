@@ -3,6 +3,8 @@
 #include "events.h"
 #include "active_events.h"
 #include "data.h"
+#include "accuracy_meter.h"
+
 
 namespace BeatmapPlayer
 {
@@ -34,6 +36,7 @@ namespace BeatmapPlayer
 
     draw_tiles();
     draw_planets();
+    meter.render(sprite);
   }
   void hit()
   {
@@ -42,6 +45,7 @@ namespace BeatmapPlayer
     // - diff: late hit
     float diff = angle_next - angle_progress;
 
+    meter.hit(diff);
     /*
     if (abs(diff) > 60.0) {
       printf("Miss/Loss: %.2f\n", diff);
@@ -93,6 +97,7 @@ namespace BeatmapPlayer
 
     // Event dispatch
     Events::update();
+    meter.update(delta_time);
 
     // Camera smoothing
     camera_x += (tiledrawdata[(p_tiledrawdata + 1) % P_TILES].x - camera_x) * delta_time * 1.0;
@@ -140,6 +145,8 @@ namespace BeatmapPlayer
         border_color = lcd.color332(250, 50, 50);
       if (_tileData & TILE_CHECKPOINT)
         border_color = lcd.color332(50, 250, 50);
+      if (floor_idx <= current_floor)
+        _tile_color = active_tile_color;
       if (_tileData & TILE_SPEEDDOWN)
         _tile_color = lcd.color332(80, 80, 200);
       if (_tileData & TILE_SPEEDUP)

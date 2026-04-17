@@ -54,7 +54,7 @@ void drawfunc(void)
 
   app.render(sprite);
 
-  {
+  if (false) {
     // Debug info
     sprite->setTextColor(TFT_WHITE);
     sprite->setCursor(0, 0);

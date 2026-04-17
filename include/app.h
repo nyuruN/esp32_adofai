@@ -37,6 +37,8 @@ public:
         case AppState::BeatmapPlayer:
             BeatmapPlayer::update(delta_time);
             break;
+        default:
+            break;
         }
     }
     void render(LGFX_Sprite *sprite)
@@ -45,6 +47,8 @@ public:
         {
         case AppState::BeatmapPlayer:
             BeatmapPlayer::render(sprite);
+            break;
+        default:
             break;
         }
     }

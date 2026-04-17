@@ -2,11 +2,10 @@
 
 #include "rust_typedef.h"
 #include "lgfx.h"
+#include "accuracy_meter.h"
 
 namespace BeatmapPlayer
 {
-
-	// Variables
 
 	// Flags
 	constexpr u8 TILE_TWIRL = 0b00000001;
@@ -23,8 +22,9 @@ namespace BeatmapPlayer
 	constexpr u8 p0_color = lcd.color332(50, 40, 255);
 	constexpr u8 p1_color = lcd.color332(255, 50, 40);
 	constexpr u8 tile_color = lcd.color332(200, 200, 200);
+	constexpr u8 active_tile_color = lcd.color332(230, 230, 230);
 
-	// States
+	// Player States
 	inline u32 current_floor = 0;
 	inline u32 current_events = 0;
 	inline float current_angle = 0;
@@ -52,6 +52,9 @@ namespace BeatmapPlayer
 	inline float zoom = 1.0;
 	inline float rotation = 0;
 	inline float pulse = 1.0;
+
+	// Accuracy Meter
+	inline AccuracyMeter meter;
 
 	// Data recalculated on every draw call
 	namespace DrawData
@@ -93,13 +96,13 @@ namespace BeatmapPlayer
 	inline i16 *angleData = nullptr;
 	inline u8 *tileData = nullptr;
 
+	inline void set_bpm(float v) { bpm = v; }
+	extern void set_event_data(u8 *event_buf, u32 length);
 	inline void set_beatmap_data(u8 *angle_buf, u8 *tile_buf, u32 length)
 	{
 		angleData = reinterpret_cast<i16 *>(angle_buf);
 		tileData = tile_buf;
 		tileCount = length;
 	}
-	inline void set_bpm(float v) { bpm = v; }
-	extern void set_event_data(u8 *event_buf, u32 length);
 
 };
