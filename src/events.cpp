@@ -1,5 +1,7 @@
 #include "events.h"
 #include "beatmap.h"
+#include "tilemap.h"
+#include "ease.h"
 
 void BeatmapEvents::next_floor()
 {
@@ -47,6 +49,19 @@ void BeatmapEvents::dispatch_event(Event *event)
 	case EventType::SetSpeed:
 		BeatmapPlayer::bpm = event->set_speed.bpm;
 		break;
+	case EventType::CameraSetMode:
+		printf("Set mode %d\n", event->camera_set_mode.relative_to);
+		if (event->camera_set_mode.relative_to == RelativeTo::Player) {
+			BeatmapPlayer::camera_mode = RelativeTo::Player;
+			break;
+		} else { // Begin transition to Tile
+			BeatmapPlayer::camera_mode = RelativeTo::Tile;
+			BeatmapPlayer::prev_anchor_x = BeatmapPlayer::camera_x;
+			BeatmapPlayer::prev_anchor_y = BeatmapPlayer::camera_y;
+			BeatmapPlayer::anchor_x = tilemap.get_relative(0).x;
+			BeatmapPlayer::anchor_y = tilemap.get_relative(0).y;
+			BeatmapPlayer::transition = 0.0f;
+		}
 	case EventType::ShakeScreen:
 	case EventType::CameraOffset:
 	case EventType::CameraRotation:
@@ -71,14 +86,17 @@ void BeatmapEvents::apply(ActiveEvent *event)
 	switch (event->type)
 	{
 	case EventType::CameraZoom:
-		BeatmapPlayer::zoom = e->camera_zoom.zoom / 1000.0f;
+		BeatmapPlayer::zoom = e->camera_zoom.zoom;
 		break;
 	case EventType::CameraRotation:
 		BeatmapPlayer::rotation = e->camera_rotation.rotation;
 		break;
 	case EventType::CameraOffset:
-		BeatmapPlayer::offset_x = e->camera_offset.offset_x / 1500.0f * BeatmapPlayer::beat_radius;
-		BeatmapPlayer::offset_y = e->camera_offset.offset_y / 1500.0f * BeatmapPlayer::beat_radius;
+		BeatmapPlayer::offset_x = e->camera_offset.offset_x / 1000.0f * BeatmapPlayer::beat_radius / 1.5;
+		BeatmapPlayer::offset_y = e->camera_offset.offset_y / 1000.0f * BeatmapPlayer::beat_radius / 1.5;
+		break;
+	case EventType::CameraSetMode:
+		break;
 	default:
 		break;
 	}
@@ -102,14 +120,19 @@ void BeatmapEvents::apply(float *camera_x, float *camera_y, float *rotation, flo
 			*camera_x += sin(t * e->shake_screen.intensity) * (float)BeatmapPlayer::beat_radius * ((float)e->shake_screen.strength / 450.0f);
 			break;
 		case EventType::CameraZoom:
-			*zoom += (e->camera_zoom.zoom / 1000.0f - *zoom) * p;
+			*zoom += (e->camera_zoom.zoom - *zoom) * p;
 			break;
 		case EventType::CameraRotation:
-			*rotation += (e->camera_rotation.rotation / 1000.0f - *rotation) * p;
+			*rotation += (e->camera_rotation.rotation - *rotation) * p;
 			break;
 		case EventType::CameraOffset:
-			*camera_x += (e->camera_offset.offset_x / 1500.0f) * BeatmapPlayer::beat_radius * p;
-			*camera_y += (e->camera_offset.offset_y / 1500.0f) * BeatmapPlayer::beat_radius * p;
+			*camera_x += (e->camera_offset.offset_x / 1000.0f) * BeatmapPlayer::beat_radius * p / 1.5;
+			*camera_y += (e->camera_offset.offset_y / 1000.0f) * BeatmapPlayer::beat_radius * p / 1.5;
+			break;
+		case EventType::CameraSetMode:
+			// Set transition value for Tile mode
+			BeatmapPlayer::transition = easeOutBack(p);
+			break;
 		default:
 			break;
 		}

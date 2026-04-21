@@ -85,6 +85,12 @@ void drawfunc(void)
     sprite->printf("tiles: % 3d", BeatmapPlayer::tileCount);
     sprite->setCursor(185, 20);
     sprite->printf("events:% 3d", beatmap_events.event_buf_size);
+    sprite->setCursor(185, 40);
+    sprite->printf("cMode:% 3d", BeatmapPlayer::camera_mode);
+    sprite->setCursor(185, 60);
+    sprite->printf("trans:% 1.2f", BeatmapPlayer::transition);
+    sprite->setCursor(185, 80);
+    sprite->printf("%.2f,%.2f", (BeatmapPlayer::anchor_x), BeatmapPlayer::anchor_y);
   }
 
   diffdraw(&_sprites[flip], &_sprites[!flip]);

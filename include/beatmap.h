@@ -3,6 +3,7 @@
 #include "rust_typedef.h"
 #include "lgfx.h"
 #include "accuracy_meter.h"
+#include "events.h"
 
 namespace BeatmapPlayer
 {
@@ -16,9 +17,9 @@ namespace BeatmapPlayer
 	inline u32 tileCount = 0;
 
 	// Constants
-	constexpr u32 beat_radius = 40;
-	constexpr u32 planet_size = 9;
-	constexpr u32 tile_size = 10;
+	constexpr u32 beat_radius = 30;
+	constexpr u32 planet_size = 6;
+	constexpr u32 tile_size = 7;
 	constexpr u8 p0_color = lcd.color332(50, 40, 255);
 	constexpr u8 p1_color = lcd.color332(255, 50, 40);
 	constexpr u8 tile_color = lcd.color332(200, 200, 200);
@@ -54,6 +55,13 @@ namespace BeatmapPlayer
 	inline float zoom = 1.0;
 	inline float rotation = 0;
 	inline float pulse = 1.0;
+	inline RelativeTo camera_mode;
+	// Tile mode
+	inline float prev_anchor_x;
+	inline float prev_anchor_y;
+	inline float anchor_x;
+	inline float anchor_y;
+	inline float transition; // 0 = Player, 1 = Tile,
 
 	// Accuracy Meter
 	inline AccuracyMeter meter;

@@ -53,6 +53,9 @@ function getEventType(e: Event): number {
     if (e.eventType == 'SetSpeed') {
         return 4
     }
+    if (e.eventType == 'CameraSetMode') {
+        return 5
+    }
 
     throw new Error('Invalid event type: \"' + e.eventType + '\"')
 }
@@ -108,6 +111,12 @@ function serialize(data: AdofaiFile) {
             events.push(v)
         }
         if (v.eventType == 'MoveCamera') {
+            // Prevent repeatedly setting camera mode, unless camera mode is Tile
+            if (v.relativeTo !== undefined) {
+                let e: Event = { ...v }
+                e.eventType = 'CameraSetMode'
+                events.push(e)
+            }
             if (v.zoom !== undefined) {
                 let e: Event = { ...v }
                 e.eventType = 'CameraZoom'
@@ -167,7 +176,7 @@ function serialize(data: AdofaiFile) {
         if (v.eventType == 'CameraZoom') {
             eventView.setUint16(offset, (v.duration as number) * 1000, little_endian)
             offset += 2
-            eventView.setFloat32(offset, (1 / ((v.zoom as number) / 100)) * 1000, little_endian)
+            eventView.setFloat32(offset, (1 / ((v.zoom as number) / 100)), little_endian)
             offset += 4
         }
         if (v.eventType == 'CameraRotate') {
@@ -183,6 +192,12 @@ function serialize(data: AdofaiFile) {
             offset += 2
             eventView.setInt16(offset, (v.position[1] ? v.position[1] : 0) * 1000, little_endian)
             offset += 2
+        }
+        if (v.eventType == 'CameraSetMode' && v.relativeTo) {
+            eventView.setUint16(offset, (v.duration as number) * 1000, little_endian)
+            offset += 2
+            eventView.setUint8(offset, (v.relativeTo === 'Player' ? 0 : 1))
+            offset += 1
         }
     })
 

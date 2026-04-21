@@ -92,8 +92,15 @@ namespace BeatmapPlayer
     meter.update(delta_time);
 
     // Camera smoothing
-    camera_x += (tilemap.get_relative(0).x - camera_x) * delta_time * 0.01 * bpm;
-    camera_y += (tilemap.get_relative(0).y - camera_y) * delta_time * 0.01 * bpm;
+    
+    if (camera_mode == RelativeTo::Player) {
+      camera_x += (tilemap.get_relative(0).x - camera_x) * delta_time * 0.01 * bpm;
+      camera_y += (tilemap.get_relative(0).y - camera_y) * delta_time * 0.01 * bpm;
+    } else if (camera_mode == RelativeTo::Tile) {
+      camera_x = prev_anchor_x + (anchor_x - prev_anchor_x) * transition;
+      camera_y = prev_anchor_y + (anchor_y - prev_anchor_y) * transition;
+    }
+
     // Camera pulse
     pulse = pulse + (1 - pulse) * delta_time * 4.0;
   }

@@ -11,8 +11,8 @@ class Tilemap
 public:
     struct TileDrawData
     {
-        i16 x;
-        i16 y;
+        float x;
+        float y;
     };
     static inline constexpr u32 P_PLAYER_OFFSET = 24;
     static inline constexpr u32 P_TILES = 64;
@@ -162,4 +162,4 @@ public:
     }
 };
 
-static inline Tilemap tilemap;
+inline Tilemap tilemap;

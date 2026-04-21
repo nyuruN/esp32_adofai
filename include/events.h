@@ -9,6 +9,7 @@ enum class EventType : u8
   CameraRotation = 2,
   ShakeScreen = 3,
   SetSpeed = 4,
+  CameraSetMode = 5,
 };
 enum class EaseType : u8
 {
@@ -18,6 +19,11 @@ enum class EaseType : u8
   EaseInOut = 3,
   InCirc = 4,
   OutCirc = 5,
+};
+enum class RelativeTo : u8 {
+  Player = 0,
+  Tile = 1,
+  Transition = 2,
 };
 
 // 7 bytes
@@ -35,7 +41,7 @@ struct CameraRotation
   float rotation; // in degrees
   EaseType ease;
 } __attribute__((packed));
-// 7 bytes = 2 + 2 + 2 + 2
+// 7 bytes = 2 + 2 + 2 + 1
 struct CameraOffset
 {
   u16 duration; // in mili beats
@@ -55,7 +61,13 @@ struct SetSpeed
 {
   float bpm; // in beats per minute
 } __attribute__((packed));
-// 1 + 4 + 2 + 7 (union) = 14 bytes
+// 1 byte
+struct CameraSetMode
+{
+  u16 duration;
+  RelativeTo relative_to;
+} __attribute__((packed));
+// 1 + 4 + 2 + 8 (union) = 16 bytes
 struct Event
 {
   EventType type;
@@ -68,6 +80,7 @@ struct Event
     CameraZoom camera_zoom;
     ShakeScreen shake_screen;
     SetSpeed set_speed;
+    CameraSetMode camera_set_mode;
   };
 } __attribute__((packed));
 
