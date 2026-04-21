@@ -117,6 +117,8 @@ namespace BeatmapPlayer
       angle_from += 360.0;
     if (angle_to < 0.0)
       angle_to += 360.0;
+    if (angle_from == angle_to)
+      return 360.0;
     if (current_direction)
     { // CCW
       if (angle_from < angle_to)
