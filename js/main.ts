@@ -4,7 +4,7 @@ import * as fflate from 'fflate'
 // @ts-ignore
 import { default as createModule } from '../build/index.js';
 
-import { Event, AdofaiFile } from './interfaces.js';
+import { Event, AdofaiFile, parseToangleData } from './interfaces.js';
 
 
 var canvas = document.getElementById('canvas') as HTMLCanvasElement;
@@ -63,6 +63,12 @@ function serialize(data: AdofaiFile) {
         SpeedDown: 4,
         Checkpoint: 8
     }
+
+    // Process PathData
+    if (data.pathData !== undefined) {
+        data.angleData = parseToangleData(data.pathData)
+    }
+
     let tileCount = data.angleData.length
     let tileData = new Uint8Array(data.angleData.length)
     let events: Event[] = []

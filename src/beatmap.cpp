@@ -92,8 +92,8 @@ namespace BeatmapPlayer
     meter.update(delta_time);
 
     // Camera smoothing
-    camera_x += (tilemap.get_relative(1).x - camera_x) * delta_time * 1.0;
-    camera_y += (tilemap.get_relative(1).y - camera_y) * delta_time * 1.0;
+    camera_x += (tilemap.get_relative(0).x - camera_x) * delta_time * 0.01 * bpm;
+    camera_y += (tilemap.get_relative(0).y - camera_y) * delta_time * 0.01 * bpm;
     // Camera pulse
     pulse = pulse + (1 - pulse) * delta_time * 4.0;
   }

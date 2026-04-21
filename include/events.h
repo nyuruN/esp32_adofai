@@ -84,12 +84,12 @@ public:
 
   static inline constexpr u32 MAX_EVENT_COUNT = 16;
 
-  ActiveEvent active_event_buf[16] = {};
+  ActiveEvent active_event_buf[32] = {};
   u8 active_count = 0;
 
   u32 p_events;                  // Pointer to first event
   u32 current_events;            // Number of events on the current floor starting from p_events
-  bool dispatched[16] = {false}; // State of dispatch of events starting from p_events
+  bool dispatched[32] = {false}; // State of dispatch of events starting from p_events
 
   // Data
   u32 event_buf_size = 0;
@@ -109,6 +109,10 @@ public:
   // TODO: handle overflow
   void add_event(ActiveEvent event)
   {
+		if (event.duration == 0) {
+			apply(&event);
+			return;
+		}
     active_event_buf[active_count] = event;
     active_count++;
   }
@@ -120,4 +124,4 @@ public:
   inline void cull_active_events();
 };
 
-static inline BeatmapEvents beatmap_events;
+inline BeatmapEvents beatmap_events;
