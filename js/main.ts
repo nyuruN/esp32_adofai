@@ -7,9 +7,12 @@ import { default as createModule } from '../build/index.js';
 import { Event, AdofaiFile, parseToangleData } from './interfaces.js';
 
 
+
 var canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
-var module = await createModule({
+var moduleLoaded = false;
+var module: any;
+createModule({
     print: function (text: string) {
         console.log("log: " + text);
     },
@@ -19,6 +22,9 @@ var module = await createModule({
     canvas: (function () {
         return canvas;
     })(),
+}).then((e: any) => {
+    module = e
+    moduleLoaded = true
 });
 
 let fileInput = document.getElementById('file-input') as HTMLInputElement
@@ -30,11 +36,15 @@ fileInput.addEventListener('change', async (ev) => {
 })
 let clearBtn = document.getElementById('clear-btn') as HTMLButtonElement
 clearBtn.addEventListener('click', (ev) => {
-    module._clear(false)
-    module._play()
+    if (moduleLoaded) {
+        module._clear(false)
+        module._play()
+    }
 })
 document.addEventListener('keydown', (ev) => {
-    module._hit()
+    if (moduleLoaded) {
+        module._hit()
+    }
 })
 
 function getEventType(e: Event): number {
@@ -233,24 +243,25 @@ function serialize(data: AdofaiFile) {
     a.click();
     */
 
-    let tilePtr = module._malloc(tileData.length)
-    let tileHeapView = new Uint8Array(module.HEAPU8.buffer, tilePtr, tileData.length)
-    tileHeapView.set(tileData);
-    let angleData = new Uint8Array(angleBuffer)
-    let anglePtr = module._malloc(angleData.length)
-    let angleHeapView = new Uint8Array(module.HEAPU8.buffer, anglePtr, angleData.length)
-    angleHeapView.set(angleData)
-    let eventData = new Uint8Array(eventBuffer)
-    let eventPtr = module._malloc(eventData.length)
-    let eventHeapView = new Uint8Array(module.HEAPU8.buffer, eventPtr, eventData.length)
-    eventHeapView.set(eventData)
+    if (moduleLoaded) {
+        let tilePtr = module._malloc(tileData.length)
+        let tileHeapView = new Uint8Array(module.HEAPU8.buffer, tilePtr, tileData.length)
+        tileHeapView.set(tileData);
+        let angleData = new Uint8Array(angleBuffer)
+        let anglePtr = module._malloc(angleData.length)
+        let angleHeapView = new Uint8Array(module.HEAPU8.buffer, anglePtr, angleData.length)
+        angleHeapView.set(angleData)
+        let eventData = new Uint8Array(eventBuffer)
+        let eventPtr = module._malloc(eventData.length)
+        let eventHeapView = new Uint8Array(module.HEAPU8.buffer, eventPtr, eventData.length)
+        eventHeapView.set(eventData)
 
-    module._clear();
-    module._set_beatmap_data(anglePtr, tilePtr, tileData.length);
-    module._set_event_data(eventPtr, events.length);
-    module._set_bpm(data.settings.bpm);
-    module._play();
-
+        module._clear();
+        module._set_beatmap_data(anglePtr, tilePtr, tileData.length);
+        module._set_event_data(eventPtr, events.length);
+        module._set_bpm(data.settings.bpm);
+        module._play();
+    }
 }
 
 /*

@@ -2,7 +2,6 @@
   "name": "cmake_wasm",
   "version": "1.0.0",
   "description": "# Step",
-  "main": "index.js",
   "scripts": {
     "make": "cd build && emmake make"
   },
@@ -11,5 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5"
   }
 }
