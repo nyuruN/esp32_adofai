@@ -13,6 +13,8 @@ namespace BeatmapPlayer
   }
   void render(LGFX_Sprite *sprite)
   {
+    background.pushSprite(sprite, 0, 0);
+
     DrawData::sprite = sprite;
     DrawData::width = sprite->width();
     DrawData::height = sprite->height();

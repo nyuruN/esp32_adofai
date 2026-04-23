@@ -65,6 +65,7 @@ namespace BeatmapPlayer
 
 	// Accuracy Meter
 	inline AccuracyMeter meter;
+	inline LGFX_Sprite background;
 
 	// Data recalculated on every draw call
 	namespace DrawData

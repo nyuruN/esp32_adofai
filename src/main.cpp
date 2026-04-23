@@ -27,6 +27,8 @@ extern "C"
   EMSCRIPTEN_KEEPALIVE
   void set_event_data(u8 *event_buf, u32 length) { BeatmapPlayer::set_event_data(event_buf, length); }
   EMSCRIPTEN_KEEPALIVE
+  void set_background_jpg(u8 *jpg, u32 length) { BeatmapPlayer::background.drawJpg(jpg, length); }
+  EMSCRIPTEN_KEEPALIVE
   void play() { BeatmapPlayer::begin(); }
   EMSCRIPTEN_KEEPALIVE
   void hit() { BeatmapPlayer::hit(); }
@@ -41,15 +43,12 @@ u32 sec, psec;
 u32 fps = 0, frame_count = 0;
 u32 draw_count = 0;
 
-LGFX_Sprite _background;
 
 void drawfunc(void)
 {
   LGFX_Sprite *sprite;
   std::size_t flip = draw_count & 1;
   sprite = &(_sprites[flip]);
-
-  _background.pushSprite(sprite, 0, 0);
 
   app.render(sprite);
 
@@ -184,11 +183,11 @@ void setup(void)
 #if defined(ESP_PLATFORM)
   LittleFS.begin(true, "/littlefs", 10, "littlefs");
 
-  _background.setTextSize(2);
-  _background.setColorDepth(8);
-  _background.setPsram(true);
-  _background.createSprite(lcd.width(), lcd.height());
-  _background.drawPngFile("/littlefs/bg.png", 0, 0, lcd.width(), lcd.height());
+  BeatmapPlayer::background.setTextSize(2);
+  BeatmapPlayer::background.setColorDepth(8);
+  BeatmapPlayer::background.setPsram(true);
+  BeatmapPlayer::background.createSprite(lcd.width(), lcd.height());
+  BeatmapPlayer::background.drawPngFile("/littlefs/bg.png", 0, 0, lcd.width(), lcd.height());
 
   file = new AudioFileSourceLittleFS("/audio.mp3");
   out = new AudioOutputI2S();
@@ -201,10 +200,10 @@ void setup(void)
 
   print_memory_info();
 #else
-  _background.setTextSize(2);
-  _background.setColorDepth(8);
-  _background.createSprite(lcd.width(), lcd.height());
-  _background.clear(lcd.color332(80, 80, 80));
+  BeatmapPlayer::background.setTextSize(2);
+  BeatmapPlayer::background.setColorDepth(8);
+  BeatmapPlayer::background.createSprite(lcd.width(), lcd.height());
+  BeatmapPlayer::background.clear(lcd.color332(80, 80, 80));
 #endif
 
   app.setup();
