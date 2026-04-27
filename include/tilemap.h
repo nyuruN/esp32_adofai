@@ -13,16 +13,20 @@ public:
     {
         float x;
         float y;
+        float c; /// Cosine of angle
+        float s; /// Sine of angle
+        float f; /// fade transition
+        //u32 f_duration; /// fade duration
     };
-    static inline constexpr u32 P_PLAYER_OFFSET = 24;
-    static inline constexpr u32 P_TILES = 64;
+    static inline const u32 P_TILES = 64;
+    u32 player_offset = 24;
     u32 p_tiledrawdata = 0; // Represents current_floor
     TileDrawData tiledrawdata[P_TILES] = {};
 
     // Get n-th tile relative to player position
     TileDrawData &get_relative(i32 idx)
     {
-        idx += p_tiledrawdata;
+        idx += p_tiledrawdata + player_offset;
         if (idx < 0)
             idx += P_TILES;
         idx = idx % P_TILES;
@@ -31,32 +35,82 @@ public:
     // Init tiledrawdata, traverse tilemap relative to current floor
     void init_tiledrawdata()
     {
-        tiledrawdata[p_tiledrawdata].x = 0;
-        tiledrawdata[p_tiledrawdata].y = 0;
-        for (u8 i = 1; i <= (P_TILES - 1 - P_PLAYER_OFFSET); i++)
+        tiledrawdata[p_tiledrawdata + player_offset].x = 0;
+        tiledrawdata[p_tiledrawdata + player_offset].y = 0;
+        // Tiles in front
+        for (u8 i = 1; i <= (P_TILES - 1 - player_offset); i++)
         {
             if (BeatmapPlayer::current_floor + i >= BeatmapPlayer::tileCount)
                 break;
-            u8 idx = (p_tiledrawdata + i) % P_TILES;
+            u8 idx = (p_tiledrawdata + player_offset + i) % P_TILES;
             tiledrawdata[idx].x = tiledrawdata[(idx - (i8)1) + (1 > idx ? P_TILES : 0)].x + cos(BeatmapPlayer::angleData[BeatmapPlayer::current_floor + i - 1] * 3.14159 / 180) * BeatmapPlayer::beat_radius;
             tiledrawdata[idx].y = tiledrawdata[(idx - (i8)1) + (1 > idx ? P_TILES : 0)].y + sin(BeatmapPlayer::angleData[BeatmapPlayer::current_floor + i - 1] * 3.14159 / 180) * BeatmapPlayer::beat_radius;
+            tiledrawdata[idx].f = 1;
         }
-        for (u8 i = 1; i <= P_PLAYER_OFFSET; i++)
+        // Tiles behind
+        for (u8 i = 1; i <= player_offset; i++)
         {
             if ((int)BeatmapPlayer::current_floor - i < 0)
                 break;
-            u8 idx = ((i8)p_tiledrawdata - i) + (i > p_tiledrawdata ? P_TILES : 0);
+            u8 idx = ((i8)p_tiledrawdata + player_offset - i) + (i > p_tiledrawdata ? P_TILES : 0);
             tiledrawdata[idx].x = tiledrawdata[(idx + 1) % P_TILES].x + cos((BeatmapPlayer::angleData[BeatmapPlayer::current_floor - i] + 180) * 3.14159 / 180) * BeatmapPlayer::beat_radius;
             tiledrawdata[idx].y = tiledrawdata[(idx + 1) % P_TILES].y + sin((BeatmapPlayer::angleData[BeatmapPlayer::current_floor - i] + 180) * 3.14159 / 180) * BeatmapPlayer::beat_radius;
+            tiledrawdata[idx].f = 1;
+        }
+    }
+    // Traverse tiles and set animation state, has to be called after init_tiledrawdata()
+    void init_tile_animation_state()
+    {
+        for (i8 i = 0; i < P_TILES; i++)
+        {
+            // Iterate from last tile to first tile ()
+            const i32 floor_idx = BeatmapPlayer::current_floor + (P_TILES - 1 - player_offset) - i;
+            if (floor_idx < 0 || floor_idx >= BeatmapPlayer::tileCount)
+                continue; // Clip invalid floors
+
+            i8 idx = (i8)p_tiledrawdata + (P_TILES - 1) - i;
+            if (idx < 0)
+                idx += P_TILES;
+            else
+                idx = idx % P_TILES;
         }
     }
     void next_tile()
     {
         p_tiledrawdata = (p_tiledrawdata + 1) % P_TILES;
-        u8 idx = (p_tiledrawdata + (P_TILES - 1 - P_PLAYER_OFFSET)) % P_TILES;
+        u8 idx = (p_tiledrawdata + (P_TILES - 1)) % P_TILES; // Last tile
         u8 prev_idx = ((i8)idx - 1) + (1 > idx ? P_TILES : 0);
-        tiledrawdata[idx].x = tiledrawdata[prev_idx].x + cos(BeatmapPlayer::angleData[BeatmapPlayer::current_floor + (P_TILES - 2 - P_PLAYER_OFFSET)] * 3.14159 / 180) * BeatmapPlayer::beat_radius;
-        tiledrawdata[idx].y = tiledrawdata[prev_idx].y + sin(BeatmapPlayer::angleData[BeatmapPlayer::current_floor + (P_TILES - 2 - P_PLAYER_OFFSET)] * 3.14159 / 180) * BeatmapPlayer::beat_radius;
+        tiledrawdata[idx].x = tiledrawdata[prev_idx].x + cos(BeatmapPlayer::angleData[BeatmapPlayer::current_floor + (P_TILES - 2 - player_offset)] * 3.14159 / 180) * BeatmapPlayer::beat_radius;
+        tiledrawdata[idx].y = tiledrawdata[prev_idx].y + sin(BeatmapPlayer::angleData[BeatmapPlayer::current_floor + (P_TILES - 2 - player_offset)] * 3.14159 / 180) * BeatmapPlayer::beat_radius;
+        tiledrawdata[idx].f = 0;
+    }
+    // Animate tile fade in and out
+    void update(float delta_time) {
+
+        for (i8 i = 0; i < P_TILES; i++)
+        {
+            // Iterate from last tile to first tile ()
+            const i32 floor_idx = BeatmapPlayer::current_floor + (P_TILES - 1 - player_offset) - i;
+            if (floor_idx < 0 || floor_idx >= BeatmapPlayer::tileCount)
+                continue; // Clip invalid floors
+
+            i8 idx = (i8)p_tiledrawdata + (P_TILES - 1) - i;
+            if (idx < 0)
+                idx += P_TILES;
+            else
+                idx = idx % P_TILES;
+
+            const i32 floor_diff = floor_idx - (i32)BeatmapPlayer::current_floor;
+            // in valid range
+            if (floor_diff <= (i32)(P_TILES - 1 - player_offset) && floor_diff >= - (i32)player_offset) {
+                tiledrawdata[idx].f += delta_time * 3.0;
+                if (tiledrawdata[idx].f > 1.0) tiledrawdata[idx].f = 1.0f;
+            } else {
+                tiledrawdata[idx].f -= delta_time * 3.0;
+                if (tiledrawdata[idx].f < 0.0) tiledrawdata[idx].f = 0.0f;
+            }
+            
+        }
     }
     void render(LGFX_Sprite *sprite)
     {
@@ -66,15 +120,21 @@ public:
         // Draw tiles
         for (i8 i = 0; i < P_TILES; i++)
         {
-            const u16 floor_idx = BeatmapPlayer::current_floor + (P_TILES - 1 - P_PLAYER_OFFSET) - i;
+            // Iterate from last tile to first tile ()
+            const u16 floor_idx = BeatmapPlayer::current_floor + (P_TILES - 1 - player_offset) - i;
             if (floor_idx < 0 || floor_idx >= BeatmapPlayer::tileCount)
                 continue; // Clip invalid floors
 
-            i8 idx = (i8)p_tiledrawdata + (P_TILES - 1 - P_PLAYER_OFFSET) - i;
+            i8 idx = (i8)p_tiledrawdata + (P_TILES - 1) - i;
             if (idx < 0)
                 idx += P_TILES;
             else
                 idx = idx % P_TILES;
+
+            // Tile is faded out
+            if (tiledrawdata[idx].f <= 0.0) {
+                continue;
+            }
 
             u8 _tile_color = BeatmapPlayer::tile_color;
             u8 border_color = lcd.color332(20, 20, 20);
@@ -93,40 +153,42 @@ public:
 
             float tile_x = tiledrawdata[idx].x;
             float tile_y = tiledrawdata[idx].y;
+            float _tile_size = BeatmapPlayer::tile_size * tiledrawdata[idx].f;
+            float _beat_radius = BeatmapPlayer::beat_radius * tiledrawdata[idx].f;
 
             float c = cos(BeatmapPlayer::angleData[floor_idx] * M_PI / 180.0f);
             float s = sin(BeatmapPlayer::angleData[floor_idx] * M_PI / 180.0f);
-            float mid_x = tile_x + c * BeatmapPlayer::beat_radius / 2.0f;
-            float mid_y = tile_y + s * BeatmapPlayer::beat_radius / 2.0f;
+            float mid_x = tile_x + c * _beat_radius / 2.0f;
+            float mid_y = tile_y + s * _beat_radius / 2.0f;
             // b r corner
-            float p0x = tile_x + s * BeatmapPlayer::tile_size;
-            float p0y = tile_y + -c * BeatmapPlayer::tile_size;
+            float p0x = tile_x + s * _tile_size;
+            float p0y = tile_y + -c * _tile_size;
             // b l corner
-            float p1x = tile_x - s * BeatmapPlayer::tile_size;
-            float p1y = tile_y - -c * BeatmapPlayer::tile_size;
+            float p1x = tile_x - s * _tile_size;
+            float p1y = tile_y - -c * _tile_size;
             // t r corner
-            float p2x = mid_x + s * BeatmapPlayer::tile_size;
-            float p2y = mid_y + -c * BeatmapPlayer::tile_size;
+            float p2x = mid_x + s * _tile_size;
+            float p2y = mid_y + -c * _tile_size;
             // t l corner
-            float p3x = mid_x - s * BeatmapPlayer::tile_size;
-            float p3y = mid_y - -c * BeatmapPlayer::tile_size;
+            float p3x = mid_x - s * _tile_size;
+            float p3y = mid_y - -c * _tile_size;
 
             float pc = cos((BeatmapPlayer::angleData[floor_idx - 1] - 180) * M_PI / 180.0f);
             float ps = sin((BeatmapPlayer::angleData[floor_idx - 1] - 180) * M_PI / 180.0f);
-            float pmid_x = tile_x + pc * BeatmapPlayer::beat_radius / 2.0f;
-            float pmid_y = tile_y + ps * BeatmapPlayer::beat_radius / 2.0f;
+            float pmid_x = tile_x + pc * _beat_radius / 2.0f;
+            float pmid_y = tile_y + ps * _beat_radius / 2.0f;
             // b r corner
-            float p4x = tile_x + ps * BeatmapPlayer::tile_size;
-            float p4y = tile_y + -pc * BeatmapPlayer::tile_size;
+            float p4x = tile_x + ps * _tile_size;
+            float p4y = tile_y + -pc * _tile_size;
             // b l corner
-            float p5x = tile_x - ps * BeatmapPlayer::tile_size;
-            float p5y = tile_y - -pc * BeatmapPlayer::tile_size;
+            float p5x = tile_x - ps * _tile_size;
+            float p5y = tile_y - -pc * _tile_size;
             // t r corner
-            float p6x = pmid_x + ps * BeatmapPlayer::tile_size;
-            float p6y = pmid_y + -pc * BeatmapPlayer::tile_size;
+            float p6x = pmid_x + ps * _tile_size;
+            float p6y = pmid_y + -pc * _tile_size;
             // t l corner
-            float p7x = pmid_x - ps * BeatmapPlayer::tile_size;
-            float p7y = pmid_y - -pc * BeatmapPlayer::tile_size;
+            float p7x = pmid_x - ps * _tile_size;
+            float p7y = pmid_y - -pc * _tile_size;
 
             BeatmapPlayer::camera_transform(&tile_x, &tile_y);
             BeatmapPlayer::camera_transform(&p0x, &p0y);
@@ -140,7 +202,7 @@ public:
             BeatmapPlayer::camera_transform(&p7x, &p7y);
             BeatmapPlayer::camera_transform(&pmid_x, &pmid_y);
 
-            sprite->fillCircle(tile_x, tile_y, BeatmapPlayer::tile_size * BeatmapPlayer::DrawData::_zoom, _tile_color);
+            sprite->fillCircle(tile_x, tile_y, _tile_size * BeatmapPlayer::DrawData::_zoom, _tile_color);
 
             sprite->fillTriangle(p0x, p0y, p1x, p1y, p2x, p2y, _tile_color);
             sprite->fillTriangle(p1x, p1y, p2x, p2y, p3x, p3y, _tile_color);

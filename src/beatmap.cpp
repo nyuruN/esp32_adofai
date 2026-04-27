@@ -92,6 +92,7 @@ namespace BeatmapPlayer
     // Event dispatch
     beatmap_events.update(delta_time * 1000);
     meter.update(delta_time);
+    tilemap.update(delta_time);
 
     // Camera smoothing
     
