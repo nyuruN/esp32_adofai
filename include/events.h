@@ -61,11 +61,17 @@ struct SetSpeed
 {
   float bpm; // in beats per minute
 } __attribute__((packed));
-// 1 byte
+// 3 byte
 struct CameraSetMode
 {
   u16 duration;
   RelativeTo relative_to;
+} __attribute__((packed));
+// 3 byte
+struct SetTrackAnimation
+{
+  u16 beatsAhead; // in mili beats, UINT16_MAX = no animation
+  u16 beatsBehind; // in mili beats, UINT16_MAX = no animation
 } __attribute__((packed));
 // 1 + 4 + 2 + 8 (union) = 16 bytes
 struct Event
@@ -104,12 +110,19 @@ public:
   u32 current_events;            // Number of events on the current floor starting from p_events
   bool dispatched[32] = {false}; // State of dispatch of events starting from p_events
 
+  // TODO: Process tile events
+  u32 p_tile_events;                  // Pointer to first event on last tile
+  u32 current_tile_events;            // Number of events on the last tile starting from p_tile_events
+  float current_tile_bpm;             // Bpm on the last tile
+
   // Data
   u32 event_buf_size = 0;
   Event *events = nullptr;
 
   // Traverse events
   void next_floor();
+  // TODO: Traverse tile events
+  void next_tile();
   // Dispatch undispatched events
   void update(u8 delta_millis);
   void dispatch_event(Event *event);

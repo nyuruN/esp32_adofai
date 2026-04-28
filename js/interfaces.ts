@@ -19,7 +19,10 @@ export interface Event {
 }
 export interface AdofaiFile {
     settings: {
+        song: string,
         artist: string,
+        levelDesc: string,
+        levelTags: string,
         backgroundColor: number,
         bgImage: string,
         songFilename: string,

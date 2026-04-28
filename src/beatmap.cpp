@@ -171,6 +171,9 @@ namespace BeatmapPlayer
     zoom = 1.4;
     rotation = 0;
     pulse = 1.0;
+    camera_mode = RelativeTo::Player;
+    anchor_x = 0;
+    anchor_y = 0;
 
     beatmap_events.clear();
     tilemap.clear();

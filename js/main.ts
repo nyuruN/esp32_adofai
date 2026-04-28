@@ -10,14 +10,14 @@ var canvas = document.getElementById('canvas') as HTMLCanvasElement;
 var moduleLoaded = false;
 var module: any;
 var beatmaps: AdofaiFile[] = [];
-var archive: fflate.Unzipped;
+var archive: fflate.Unzipped | null = null;
 
 createModule({
 	print: function (text: string) {
-		console.log("log: " + text);
+		console.log("log: " + text)
 	},
 	printErr: function (text: string) {
-		console.error(text);
+		console.error(text)
 	},
 	canvas: (function () {
 		return canvas;
@@ -27,7 +27,29 @@ createModule({
 	moduleLoaded = true
 });
 
+function update_beatmap_options() {
+	var container = document.getElementsByClassName('container')[0]
+
+	beatmaps.forEach((beatmap) => {
+		var div = document.createElement('div')
+		div.classList.add("beatmap-listing")
+		var title = document.createElement('h1')
+		title.innerHTML = beatmap.settings.song
+		div.appendChild(title)
+		var artist = document.createElement('h2')
+		artist.textContent = beatmap.settings.artist
+		div.appendChild(title)
+		var levelDesc = document.createElement('p')
+		levelDesc.textContent = beatmap.settings.levelDesc
+		div.appendChild(levelDesc)
+
+		container.appendChild(div)
+	})
+}
+
 async function getImage(path: string) {
+	if (!archive) return;
+
 	let extension = path.split('.').reverse()[0]
 	let imageBlob = new Blob([archive[path].buffer as ArrayBuffer], { type: 'image/' + extension })
 	let url = URL.createObjectURL(imageBlob)
@@ -43,7 +65,9 @@ async function getImage(path: string) {
 	const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 	canvas.width = 320
 	canvas.height = 240
-	ctx.drawImage(img, 0, 0, 320, 240)
+	const ar = img.width / img.height
+	const x0 = (canvas.height * ar - canvas.width) * 0.5;
+	ctx.drawImage(img, -x0, 0, canvas.height * ar, 240)
 
 	/* Quantize image
 	let imgData = ctx.getImageData(0, 0, 320, 240);
@@ -80,7 +104,6 @@ fileInput.addEventListener('change', async (ev) => {
 	if (fileInput.files) {
 		if (fileInput.files[0].name.endsWith(".zip")) {
 			let data = await fileInput.files[0].bytes()
-			//let beatmaps: string[]
 			fflate.unzip(data, (err, data) => {
 				if (err) {
 					console.error(err)
@@ -95,10 +118,9 @@ fileInput.addEventListener('change', async (ev) => {
 						beatmaps.push(file);
 					}
 				});
+
+				//update_beatmap_options();
 				
-				if (beatmaps[0].settings.bgImage != '') {
-					getImage(beatmaps[0].settings.bgImage)
-				}
 				serialize(beatmaps[0]);
 			})
 		} else if (fileInput.files[0].name.endsWith(".adofai")) {
@@ -318,9 +340,15 @@ function serialize(data: AdofaiFile) {
 		eventHeapView.set(eventData)
 
 		module._clear();
+
 		module._set_beatmap_data(anglePtr, tilePtr, tileData.length);
 		module._set_event_data(eventPtr, events.length);
 		module._set_bpm(data.settings.bpm);
+
+		if (data.settings.bgImage != '') {
+			getImage(data.settings.bgImage)
+		}
+
 		module._play();
 	}
 }
