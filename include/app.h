@@ -5,17 +5,25 @@
 
 enum class AppState
 {
-    StartMenu = 0,
+    MainMenu = 0,
     BeatmapSelection = 1,
     BeatmapPlayer = 2,
     Settings = 3,
     ShowWebsiteLink = 4,
     ShowUploadProgress = 5,
 };
+enum class Input
+{
+    Press,
+    Up,
+    Left,
+    Right,
+    Down,
+};
 
 class App
 {
-    AppState state = AppState::BeatmapPlayer;
+    AppState state = AppState::MainMenu;
 
 public:
     void setup()
@@ -48,23 +56,33 @@ public:
         case AppState::BeatmapPlayer:
             BeatmapPlayer::render(sprite);
             break;
+        case AppState::MainMenu:
+            sprite->clear();
+            sprite->setCursor(80, 100);
+            sprite->printf("Click to play");
+            break;
+        default:
+            break;
+        }
+    }
+    void input(Input input) {
+        switch (state)
+        {
+        case AppState::BeatmapPlayer:
+            if (input == Input::Press)
+                BeatmapPlayer::hit();
+            break;
+        case AppState::MainMenu:
+            if (input == Input::Press) {
+                BeatmapPlayer::begin();
+                state = AppState::BeatmapPlayer;
+            }
+            break;
         default:
             break;
         }
     }
     void press()
-    {
-    }
-    void up()
-    {
-    }
-    void down()
-    {
-    }
-    void left()
-    {
-    }
-    void right()
     {
     }
 };

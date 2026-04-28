@@ -6,6 +6,8 @@
 #include "data.h"
 #include "app.h"
 
+App app;
+
 #ifdef __EMSCRIPTEN__
 // If you write this, you can use drawBmpFile / drawJpgFile / drawPngFile
 // #include <stdio.h>
@@ -31,11 +33,17 @@ extern "C"
   EMSCRIPTEN_KEEPALIVE
   void play() { BeatmapPlayer::begin(); }
   EMSCRIPTEN_KEEPALIVE
-  void hit() { BeatmapPlayer::hit(); }
+  void hit() { app.input(Input::Press);; }
+  EMSCRIPTEN_KEEPALIVE
+  void up() { app.input(Input::Up); }
+  EMSCRIPTEN_KEEPALIVE
+  void left() { app.input(Input::Left); }
+  EMSCRIPTEN_KEEPALIVE
+  void down() { app.input(Input::Down); }
+  EMSCRIPTEN_KEEPALIVE
+  void right() { app.input(Input::Right); }
 };
 #endif
-
-App app;
 
 // Auxiliary variables
 u64 pmillis = 0;
@@ -200,6 +208,7 @@ void setup(void)
 
   print_memory_info();
 #else
+  lcd.setFont(&fonts::DejaVu12);
   BeatmapPlayer::background.setTextSize(2);
   BeatmapPlayer::background.setColorDepth(8);
   BeatmapPlayer::background.createSprite(lcd.width(), lcd.height());

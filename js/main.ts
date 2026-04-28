@@ -138,7 +138,11 @@ clearBtn.addEventListener('click', (ev) => {
 })
 document.addEventListener('keydown', (ev) => {
 	if (moduleLoaded) {
-		module._hit()
+		if (ev.key == 'w') module._up()
+		else if (ev.key == 'a') module._left()
+		else if (ev.key == 's') module._down()
+		else if (ev.key == 'd') module._right()
+		else module._hit()
 	}
 })
 
