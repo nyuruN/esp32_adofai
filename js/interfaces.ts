@@ -26,6 +26,7 @@ export interface AdofaiFile {
         backgroundColor: number,
         bgImage: string,
         songFilename: string,
+        filename: string,
         beatsAhead: number,
         bpm: number,
         relativeTo: string,

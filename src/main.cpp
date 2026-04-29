@@ -31,6 +31,8 @@ extern "C"
   EMSCRIPTEN_KEEPALIVE
   void set_background_jpg(u8 *jpg, u32 length) { BeatmapPlayer::background.drawJpg(jpg, length); }
   EMSCRIPTEN_KEEPALIVE
+  void toggle_autohit() { BeatmapPlayer::autohit = !BeatmapPlayer::autohit; }
+  EMSCRIPTEN_KEEPALIVE
   void play() { BeatmapPlayer::begin(); }
   EMSCRIPTEN_KEEPALIVE
   void hit() { app.input(Input::Press);; }

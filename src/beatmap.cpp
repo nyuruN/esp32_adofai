@@ -73,7 +73,7 @@ namespace BeatmapPlayer
   void update(float delta_time)
   {
     { // auto hit logic
-      if (angle_progress > angle_next && !(current_floor >= (tileCount - 1)))
+      if (autohit && angle_progress > angle_next && !(current_floor >= (tileCount - 1)))
       {
         hit();
       }

@@ -34,6 +34,7 @@ namespace BeatmapPlayer
 	inline float bpm = 227;
 	inline float angle_progress = 0;
 	inline float angle_next = 0;
+	inline bool autohit = true;
 
 	// Tilemap
 	/*

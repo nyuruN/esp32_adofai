@@ -28,22 +28,17 @@ createModule({
 });
 
 function update_beatmap_options() {
-	var container = document.getElementsByClassName('container')[0]
+	var select = document.getElementById('beatmap-options') as HTMLSelectElement
 
-	beatmaps.forEach((beatmap) => {
-		var div = document.createElement('div')
-		div.classList.add("beatmap-listing")
-		var title = document.createElement('h1')
-		title.innerHTML = beatmap.settings.song
-		div.appendChild(title)
-		var artist = document.createElement('h2')
-		artist.textContent = beatmap.settings.artist
-		div.appendChild(title)
-		var levelDesc = document.createElement('p')
-		levelDesc.textContent = beatmap.settings.levelDesc
-		div.appendChild(levelDesc)
+	while (select.firstChild) {
+		select.removeChild(select.lastChild as ChildNode)
+	}
 
-		container.appendChild(div)
+	beatmaps.forEach((beatmap, idx) => {
+		var option = document.createElement('option') as HTMLOptionElement
+		option.value = idx.toString();
+		option.textContent = beatmap.settings.filename
+		select.appendChild(option)
 	})
 }
 
@@ -115,13 +110,14 @@ fileInput.addEventListener('change', async (ev) => {
 						let decoder = new TextDecoder()
 						let text = decoder.decode(data[key])
 						let file = JSON.parse(text) as AdofaiFile
+						file.settings.filename = key
 						beatmaps.push(file);
 					}
 				});
 
-				//update_beatmap_options();
+				update_beatmap_options();
 				
-				serialize(beatmaps[0]);
+				serialize(beatmaps[beatmaps.length - 1]);
 			})
 		} else if (fileInput.files[0].name.endsWith(".adofai")) {
 			let text = await fileInput.files[0].text()
@@ -134,6 +130,18 @@ clearBtn.addEventListener('click', (ev) => {
 	if (moduleLoaded) {
 		module._clear(false)
 		module._play()
+	}
+})
+let autohitBtn = document.getElementById('autohit-btn') as HTMLButtonElement
+autohitBtn.addEventListener('click', (ev) => {
+	if (moduleLoaded) {
+		module._toggle_autohit()
+	}
+})
+let beatmapOptions = document.getElementById('beatmap-options') as HTMLSelectElement
+beatmapOptions.addEventListener('change', (ev) => {
+	if (moduleLoaded) {
+		serialize(beatmaps[Number.parseInt(beatmapOptions.value)])
 	}
 })
 document.addEventListener('keydown', (ev) => {

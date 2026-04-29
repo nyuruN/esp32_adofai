@@ -84,10 +84,19 @@
 			
 		</div>
 		<div class="flex-col align-center" style="gap: 0.5em">
+			<div>
+				<label for="beatmaps">Beatmap:</label>
+				<select name="beatmaps" id="beatmap-options" style="padding: 0.5em;">
+					<option>Default</option>
+				</select>	
+			</div>
 			<div id="output">
 				<canvas id="canvas"></canvas>
 			</div>
 			<div>
+				<button id="autohit-btn" class="button">
+					Autohit
+				</button>
 				<button id="clear-btn" class="button">
 					Reset&nbsp;
 				</button>

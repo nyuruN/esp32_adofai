@@ -23,7 +23,7 @@ enum class Input
 
 class App
 {
-    AppState state = AppState::MainMenu;
+    AppState state = AppState::BeatmapPlayer;
 
 public:
     void setup()
