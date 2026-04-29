@@ -56,18 +56,47 @@
 			-ms-interpolation-mode: nearest-neighbor;
 			object-fit: contain;
 		}
+		.container {
+			border-color: #2b2c2c;
+			/*background-color: #2b2c2c;*/
+			padding: 1em;
+			border-radius: 2px;
+			/*min-width: calc(var(--width) * 2);*/
+		}
+		.beatmap-listing {
+			background-color: #3e3f3f;
+			border-radius: 3px;
+			border-color: #353a3b;
+			padding: 1em;
+			cursor: pointer;
+		}
+		h1,p {
+			display: inline-block;
+		}
 	</style>
-  <script type="module" crossorigin src="/esp32_adofai/assets/index-BCXCBJna.js"></script>
+  <script type="module" crossorigin src="/esp32_adofai/assets/index-rMya7Psh.js"></script>
   <link rel="stylesheet" crossorigin href="/esp32_adofai/assets/index-DpmdxL97.css">
 </head>
 
 <body>
 	<div class="flex">
-		<div class="flex-col align-center">
+		<div class="grow">
+			
+		</div>
+		<div class="flex-col align-center" style="gap: 0.5em">
+			<div>
+				<label for="beatmaps">Beatmap:</label>
+				<select name="beatmaps" id="beatmap-options" style="padding: 0.5em;">
+					<option>Default</option>
+				</select>	
+			</div>
 			<div id="output">
 				<canvas id="canvas"></canvas>
 			</div>
 			<div>
+				<button id="autohit-btn" class="button">
+					Autohit
+				</button>
 				<button id="clear-btn" class="button">
 					Reset&nbsp;
 				</button>
@@ -77,7 +106,7 @@
 				</label>
 			</div>
 		</div>
-		<div class="container">
+		<div class="container grow">
 			
 		</div>
 	</div>
