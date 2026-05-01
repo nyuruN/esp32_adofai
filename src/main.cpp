@@ -2,9 +2,11 @@
 #include "events.h"
 #include "rust_typedef.h"
 #include "beatmap.h"
-#include "camera_events.h"
 #include "lgfx.h"
 #include "data.h"
+#include "app.h"
+
+App app;
 
 #ifdef __EMSCRIPTEN__
 // If you write this, you can use drawBmpFile / drawJpgFile / drawPngFile
@@ -16,142 +18,161 @@
 // #pragma comment (lib, "winhttp.lib")
 #include <emscripten.h>
 #include <emscripten/bind.h>
-extern "C" {
+extern "C"
+{
   EMSCRIPTEN_KEEPALIVE
-  void clear(bool erase_data) { Beatmap::clear(erase_data); }
+  void clear(bool erase_data) { BeatmapPlayer::clear(erase_data); }
   EMSCRIPTEN_KEEPALIVE
-  void set_beatmap_data(u8* angle_buf, u8* tile_buf, u32 length) { Beatmap::set_beatmap_data(angle_buf, tile_buf, length); }
+  void set_beatmap_data(u8 *angle_buf, u8 *tile_buf, u32 length) { BeatmapPlayer::set_beatmap_data(angle_buf, tile_buf, length); }
   EMSCRIPTEN_KEEPALIVE
-  void set_bpm(float v) { Beatmap::set_bpm(v); }
+  void set_bpm(float v) { BeatmapPlayer::set_bpm(v); }
   EMSCRIPTEN_KEEPALIVE
-  void set_event_data(u8* event_buf, u32 length) { Beatmap::set_event_data(event_buf, length); }
+  void set_event_data(u8 *event_buf, u32 length) { BeatmapPlayer::set_event_data(event_buf, length); }
   EMSCRIPTEN_KEEPALIVE
-  void play() { Beatmap::begin(); }
+  void set_background_jpg(u8 *jpg, u32 length) { BeatmapPlayer::background.drawJpg(jpg, length); }
   EMSCRIPTEN_KEEPALIVE
-  void hit() { Beatmap::hit(); }
+  void toggle_autohit() { BeatmapPlayer::autohit = !BeatmapPlayer::autohit; }
+  EMSCRIPTEN_KEEPALIVE
+  void play() { BeatmapPlayer::begin(); }
+  EMSCRIPTEN_KEEPALIVE
+  void hit() { app.input(Input::Press);; }
+  EMSCRIPTEN_KEEPALIVE
+  void up() { app.input(Input::Up); }
+  EMSCRIPTEN_KEEPALIVE
+  void left() { app.input(Input::Left); }
+  EMSCRIPTEN_KEEPALIVE
+  void down() { app.input(Input::Down); }
+  EMSCRIPTEN_KEEPALIVE
+  void right() { app.input(Input::Right); }
 };
 #endif
 
 // Auxiliary variables
 u64 pmillis = 0;
-u32 _fps = 0;
 u32 sec, psec;
 u32 fps = 0, frame_count = 0;
-bool _is_running;
-u32 _draw_count;
-u32 _loop_count;
+u32 draw_count = 0;
 
-LGFX_Sprite _background;
 
-static void drawfunc(void)
+void drawfunc(void)
 {
-  LGFX_Sprite* sprite;
-  std::size_t flip = _draw_count & 1;
+  LGFX_Sprite *sprite;
+  std::size_t flip = draw_count & 1;
   sprite = &(_sprites[flip]);
 
-  _background.pushSprite(sprite, 0, 0);
+  app.render(sprite);
 
-  Beatmap::render(sprite);
-
-  {
+  if (false) {
     // Debug info
     sprite->setTextColor(TFT_WHITE);
-    sprite->setCursor(0,0);
-    sprite->printf("fps:%d", (int)_fps);
-    sprite->setCursor(0,20);
-    sprite->printf("dir:%d", (int)Beatmap::current_angle);
-    sprite->setCursor(0,40);
-    sprite->printf("next:%d", (int)Beatmap::angle_data[current_floor]);
-    sprite->setCursor(0,60);
-    sprite->printf("prog:%d", (int)Beatmap::angle_progress);
-    sprite->setCursor(0,80);
-    sprite->printf("angle:%d", (int)Beatmap::angle_next);
-    sprite->setCursor(0,100);
-    sprite->printf("floor:%d", (int)Beatmap::current_floor);
-    sprite->setCursor(0,120);
-    sprite->printf("bpm:%d", (int)Beatmap::bpm);
-    sprite->setCursor(0,140);
-    sprite->printf("pE:%d", (int)Events::p_events);
-    sprite->setCursor(0,160);
-    sprite->printf("pCE:%d", (int)CameraEvents::count);
-    sprite->setCursor(0,180);
-    sprite->printf("zoom:%.2f", 1.0f / Beatmap::DrawData::_zoom);
-    sprite->setCursor(0,200);
-    sprite->printf("rot:%.2f", Beatmap::DrawData::_rotation);
-    sprite->setCursor(0,220);
-    sprite->printf("%.2f,%.2f", (Beatmap::DrawData::_camera_x - Beatmap::camera_x), (Beatmap::DrawData::_camera_y - Beatmap::camera_y));
+    sprite->setCursor(0, 0);
+    sprite->printf("fps:%d", (int)fps);
+    sprite->setCursor(0, 20);
+    sprite->printf("dir:%d", (int)BeatmapPlayer::current_angle);
+    sprite->setCursor(0, 40);
+    sprite->printf("next:%d", (int)BeatmapPlayer::angleData[BeatmapPlayer::current_floor]);
+    sprite->setCursor(0, 60);
+    sprite->printf("prog:%d", (int)BeatmapPlayer::angle_progress);
+    sprite->setCursor(0, 80);
+    sprite->printf("angle:%d", (int)BeatmapPlayer::angle_next);
+    sprite->setCursor(0, 100);
+    sprite->printf("floor:%d", (int)BeatmapPlayer::current_floor);
+    sprite->setCursor(0, 120);
+    sprite->printf("bpm:%.1f", BeatmapPlayer::bpm);
+    sprite->setCursor(0, 140);
+    sprite->printf("pE:%d", (int)beatmap_events.p_events);
+    sprite->setCursor(0, 160);
+    sprite->printf("pCE:%d", (int)beatmap_events.active_count);
+    sprite->setCursor(0, 180);
+    sprite->printf("zoom:%.2f", 1.0f / BeatmapPlayer::DrawData::_zoom);
+    sprite->setCursor(0, 200);
+    sprite->printf("rot:%.2f", BeatmapPlayer::DrawData::_rotation);
+    sprite->setCursor(0, 220);
+    sprite->printf("%.2f,%.2f", (BeatmapPlayer::DrawData::_camera_x - BeatmapPlayer::camera_x), (BeatmapPlayer::DrawData::_camera_y - BeatmapPlayer::camera_y));
 
-    sprite->setCursor(185,0);
-    sprite->printf("tiles: % 3d", Beatmap::TILE_BUF_SIZE);
-    sprite->setCursor(185,20);
-    sprite->printf("events:% 3d", Events::event_buf_size);
+    sprite->setCursor(185, 0);
+    sprite->printf("tiles: % 3d", BeatmapPlayer::tileCount);
+    sprite->setCursor(185, 20);
+    sprite->printf("events:% 3d", beatmap_events.event_buf_size);
+    sprite->setCursor(185, 40);
+    sprite->printf("cMode:% 3d", BeatmapPlayer::camera_mode);
+    sprite->setCursor(185, 60);
+    sprite->printf("trans:% 1.2f", BeatmapPlayer::transition);
+    sprite->setCursor(185, 80);
+    sprite->printf("%.2f,%.2f", (BeatmapPlayer::anchor_x), BeatmapPlayer::anchor_y);
   }
 
   diffdraw(&_sprites[flip], &_sprites[!flip]);
-  ++_draw_count;
+  draw_count++;
 }
 
-static void mainfunc(void)
+void mainfunc(void)
 {
   float delta_time = (lgfx::millis() - pmillis) / 1000.0;
   pmillis = lgfx::millis();
   sec = lgfx::millis() / 1000;
-  if (psec != sec) {
+  if (psec != sec)
+  {
     psec = sec;
     fps = frame_count;
     frame_count = 0;
   }
 
-  Beatmap::update(delta_time);
+  app.update(delta_time);
 
   frame_count++;
-  _loop_count++;
-  _fps = fps;
 }
 
-#if defined (ESP_PLATFORM)
+#if defined(ESP_PLATFORM)
 #include "esp_flash.h"
 #include "esp_log.h"
 
-void print_memory_info(void) {
-    // Get total and free sizes for different memory types
-    multi_heap_info_t info;
+void print_memory_info(void)
+{
+  // Get total and free sizes for different memory types
+  multi_heap_info_t info;
 
-    // 1. Internal SRAM (IRAM/DRAM) - MALLOC_CAP_INTERNAL
-    heap_caps_get_info(&info, MALLOC_CAP_INTERNAL);
-    ESP_LOGI("Main", "\n--- Internal SRAM (IRAM/DRAM) ---\n");
+  // 1. Internal SRAM (IRAM/DRAM) - MALLOC_CAP_INTERNAL
+  heap_caps_get_info(&info, MALLOC_CAP_INTERNAL);
+  ESP_LOGI("Main", "\n--- Internal SRAM (IRAM/DRAM) ---\n");
+  ESP_LOGI("Main", "Total: %d KB\n", (info.total_free_bytes + info.total_allocated_bytes) / 1024);
+  ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
+  ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
+
+  // 2. External PSRAM (SPIRAM) - MALLOC_CAP_SPIRAM
+  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0)
+  {
+    heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
+    ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
     ESP_LOGI("Main", "Total: %d KB\n", (info.total_free_bytes + info.total_allocated_bytes) / 1024);
     ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
     ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
+  }
+  else
+  {
+    ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
+    ESP_LOGI("Main", "PSRAM is not enabled or not detected.\n");
+  }
 
-    // 2. External PSRAM (SPIRAM) - MALLOC_CAP_SPIRAM
-    if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0) {
-        heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
-        ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
-        ESP_LOGI("Main", "Total: %d KB\n", (info.total_free_bytes + info.total_allocated_bytes) / 1024);
-        ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
-        ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
-    } else {
-        ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
-        ESP_LOGI("Main", "PSRAM is not enabled or not detected.\n");
-    }
+  // 3. Flash Size (Storage, not RAM)
+  ESP_LOGI("Main", "\n--- Flash (Storage) ---\n");
 
-    // 3. Flash Size (Storage, not RAM)
-    ESP_LOGI("Main", "\n--- Flash (Storage) ---\n");
+  uint32_t flash_size;
+  auto res = esp_flash_get_size(NULL, &flash_size);
 
-    uint32_t flash_size;
-    auto res = esp_flash_get_size(NULL, &flash_size);
+  if (res == ESP_OK)
+  {
+    ESP_LOGI("Main", "Total Flash Size: %d MB\n", (int)flash_size / (1024 * 1024));
+  }
+  else
+  {
+    ESP_LOGI("Main", "Failed to get flash size.\n");
+  }
 
-    if (res == ESP_OK) {
-      ESP_LOGI("Main", "Total Flash Size: %d MB\n", (int)flash_size / (1024 * 1024));
-    } else {
-      ESP_LOGI("Main", "Failed to get flash size.\n");
-    }
-
-    // Optional: Print a summary from the main heap
-    ESP_LOGI("Main", "\n--- Summary ---\n");
-    ESP_LOGI("Main", "Total Free Heap (all memory): %d KB\n", (int)esp_get_free_heap_size() / 1024);
-    ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
+  // Optional: Print a summary from the main heap
+  ESP_LOGI("Main", "\n--- Summary ---\n");
+  ESP_LOGI("Main", "Total Free Heap (all memory): %d KB\n", (int)esp_get_free_heap_size() / 1024);
+  ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
 }
 
 #include <LittleFS.h>
@@ -165,17 +186,18 @@ AudioFileSourceLittleFS *file;
 AudioOutputI2S *out;
 #endif
 
-void setup(void) {
+void setup(void)
+{
   setup_display();
 
-#if defined (ESP_PLATFORM)
+#if defined(ESP_PLATFORM)
   LittleFS.begin(true, "/littlefs", 10, "littlefs");
 
-  _background.setTextSize(2);
-  _background.setColorDepth(8);
-  _background.setPsram(true);
-  _background.createSprite(lcd.width(), lcd.height());
-  _background.drawPngFile("/littlefs/bg.png", 0, 0, lcd.width(), lcd.height());
+  BeatmapPlayer::background.setTextSize(2);
+  BeatmapPlayer::background.setColorDepth(8);
+  BeatmapPlayer::background.setPsram(true);
+  BeatmapPlayer::background.createSprite(lcd.width(), lcd.height());
+  BeatmapPlayer::background.drawPngFile("/littlefs/bg.png", 0, 0, lcd.width(), lcd.height());
 
   file = new AudioFileSourceLittleFS("/audio.mp3");
   out = new AudioOutputI2S();
@@ -188,28 +210,23 @@ void setup(void) {
 
   print_memory_info();
 #else
-  _background.clear(lcd.color332(80, 80, 80));
+  lcd.setFont(&fonts::DejaVu12);
+  BeatmapPlayer::background.setTextSize(2);
+  BeatmapPlayer::background.setColorDepth(8);
+  BeatmapPlayer::background.createSprite(lcd.width(), lcd.height());
+  BeatmapPlayer::background.clear(lcd.color332(80, 80, 80));
 #endif
 
-  Beatmap::clear();
-
-  // Assign beatmap data
-  Beatmap::set_beatmap_data(Data::angleData, Data::tileData, Data::tileCount);
-  Beatmap::set_bpm(227);
-  Beatmap::set_bpm(20);
-  Beatmap::set_event_data(Data::eventData, Data::eventCount);
-
-  Beatmap::begin();
-
-  _is_running = true;
-  _draw_count = 0;
-  _loop_count = 0;
+  app.setup();
 }
 
-void loop(void) {
-#if defined (ESP_PLATFORM)
-  if (mp3->isRunning()) {
-    if (!mp3->loop()) {
+void loop(void)
+{
+#if defined(ESP_PLATFORM)
+  if (mp3->isRunning())
+  {
+    if (!mp3->loop())
+    {
       mp3->stop();
     }
   }
