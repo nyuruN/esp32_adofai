@@ -11,6 +11,7 @@ var moduleLoaded = false;
 var module: any;
 var beatmaps: AdofaiFile[] = [];
 var archive: fflate.Unzipped | null = null;
+var currentBeatmap: Blob | null;
 
 createModule({
 	print: function (text: string) {
@@ -80,11 +81,14 @@ async function getImage(path: string) {
 	
 	if (blob === null) return
 
-	let buffer = new Uint8Array(await blob.arrayBuffer());
+	let arrayBuffer = await blob.arrayBuffer()
+	let buffer = new Uint8Array(arrayBuffer);
 	let imgPtr = module._malloc(buffer.byteLength)
 	let imgHeapView = new Uint8Array(module.HEAPU8.buffer, imgPtr, buffer.byteLength)
 	imgHeapView.set(buffer)
 	module._set_background_jpg(imgPtr, buffer.byteLength)
+
+	return arrayBuffer;
 
 	/* Download image
 	var a = document.createElement('a');
@@ -143,6 +147,18 @@ beatmapOptions.addEventListener('change', (ev) => {
 	if (moduleLoaded) {
 		serialize(beatmaps[Number.parseInt(beatmapOptions.value)])
 	}
+});
+(document.getElementById('ping-btn') as HTMLButtonElement).addEventListener('click', async (ev) => {
+	if (moduleLoaded && currentBeatmap !== null) {
+		fetch('http://adofai.local/upload-beatmap', {
+			method: "POST",
+			body: currentBeatmap,
+			headers: {
+				"content-length": currentBeatmap.size.toString()
+			}
+		})
+	}
+
 })
 document.addEventListener('keydown', (ev) => {
 	if (moduleLoaded) {
@@ -176,7 +192,7 @@ function getEventType(e: Event): number {
 
 	throw new Error('Invalid event type: \"' + e.eventType + '\"')
 }
-function serialize(data: AdofaiFile) {
+async function serialize(data: AdofaiFile) {
 	const TileData = {
 		Twirl: 1,
 		SpeedUp: 2,
@@ -295,12 +311,14 @@ function serialize(data: AdofaiFile) {
 			offset += 2
 			eventView.setFloat32(offset, (1 / ((v.zoom as number) / 100)), little_endian)
 			offset += 4
+			offset += 1
 		}
 		if (v.eventType == 'CameraRotate') {
 			eventView.setUint16(offset, (v.duration as number) * 1000, little_endian)
 			offset += 2
 			eventView.setFloat32(offset, (v.rotation as number), little_endian)
 			offset += 4
+			offset += 1
 		}
 		if (v.eventType == 'CameraOffset' && v.position) {
 			eventView.setUint16(offset, (v.duration as number) * 1000, little_endian)
@@ -309,6 +327,7 @@ function serialize(data: AdofaiFile) {
 			offset += 2
 			eventView.setInt16(offset, (v.position[1] ? v.position[1] : 0) * 1000, little_endian)
 			offset += 2
+			offset += 1
 		}
 		if (v.eventType == 'CameraSetMode' && v.relativeTo) {
 			eventView.setUint16(offset, (v.duration as number) * 1000, little_endian)
@@ -357,10 +376,30 @@ function serialize(data: AdofaiFile) {
 		module._set_event_data(eventPtr, events.length);
 		module._set_bpm(data.settings.bpm);
 
+		let imageBuffer = new ArrayBuffer(0);
 		if (data.settings.bgImage != '') {
-			getImage(data.settings.bgImage)
+			let img = await getImage(data.settings.bgImage)
+			if (img) imageBuffer = img;
 		}
 
 		module._play();
+
+		let settingsBuffer = new ArrayBuffer(20);
+		let settingsView = new DataView(settingsBuffer);
+		let offset = 0;
+
+		settingsView.setUint32(offset, tileCount, little_endian)
+		offset += 4;
+		settingsView.setUint32(offset, events.length, little_endian)
+		offset += 4;
+		settingsView.setUint32(offset, imageBuffer.byteLength, little_endian)
+		offset += 4;
+		settingsView.setUint32(offset, 0, little_endian)
+		offset += 4;
+		settingsView.setFloat32(offset, data.settings.bpm, little_endian)
+		offset += 4;
+
+		let blob = new Blob([settingsBuffer, tileData, angleData, eventData, imageBuffer]);
+		currentBeatmap = blob
 	}
 }
