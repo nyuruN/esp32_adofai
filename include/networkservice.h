@@ -3,6 +3,8 @@
 #include "lgfx.h"
 #include "events.h"
 #include "store.h"
+#include "music_player.h"
+#include "debug.h"
 
 #include <Wifi.h>
 #include <WebServer.h>
@@ -135,6 +137,9 @@ namespace BeatmapUpload
 			BeatmapPlayer::background.drawJpg(beatmap.bgData, beatmap.bgSize);
 		BeatmapPlayer::clear();
 		BeatmapPlayer::begin();
+		music_player.set_song(beatmap.songData, beatmap.songSize);
+		music_player.play();
+		print_memory_info();
 	}
 
 	inline void handle_upload()
@@ -145,6 +150,8 @@ namespace BeatmapUpload
 		{
 		case RAW_START:
 			len = server.clientContentLength();
+			if (len > beatmapStore.get_available_size())
+				beatmapStore.clear();
 			buf = (u8 *)heap_caps_malloc(len, MALLOC_CAP_SPIRAM);
 			printf("Buffer %p\n", buf);
 			written = 0;
@@ -240,10 +247,12 @@ inline void network_update()
 		if (WiFi.status() == WL_CONNECTED)
 			network_state = NetworkState::Connected;
 		else if (WiFi.status() != WL_IDLE_STATUS)
-			network_state = NetworkState::Connect;
-		else
 		{
 			printf("WiFi Status: %d\n", WiFi.status());
+			network_state = NetworkState::Connect;
+		}
+		else
+		{
 			retry_timer++;
 			if (retry_timer > retry_frames)
 			{
