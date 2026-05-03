@@ -1,10 +1,14 @@
+// At the top of your main application file
+//import { Buffer } from 'buffer';
+//window.Buffer = Buffer;
 
 import * as fflate from 'fflate'
 
 // @ts-ignore
 import { default as createModule } from '../build/index.js';
-
 import { Event, AdofaiFile, parseToangleData } from './interfaces.js';
+import { encodeAudio } from './encode.js';
+
 
 var canvas = document.getElementById('canvas') as HTMLCanvasElement;
 var moduleLoaded = false;
@@ -43,6 +47,31 @@ function update_beatmap_options() {
 	})
 }
 
+
+async function getSong(path: string) {
+	if (!archive) return;
+
+	console.log(path)
+	console.log(archive[path].buffer)
+	let output = await encodeAudio(archive[path].buffer as ArrayBuffer);
+	if (output === undefined) {
+		return;
+	}
+
+
+	/*
+	// @ts-ignore
+	let blob = new Blob([output], {type: 'audio/opus'})
+	let url = URL.createObjectURL(blob);
+	let a = document.createElement('a');
+	a.href = url;
+	a.download = 'music.opus';
+	a.click();
+	URL.revokeObjectURL(url);
+	*/
+
+	return output
+}
 async function getImage(path: string) {
 	if (!archive) return;
 
@@ -126,7 +155,20 @@ fileInput.addEventListener('change', async (ev) => {
 		} else if (fileInput.files[0].name.endsWith(".adofai")) {
 			let text = await fileInput.files[0].text()
 			serialize(JSON.parse(text) as AdofaiFile)
+		} else if (fileInput.files[0].name.endsWith(".mp3")) {
+			let bytes = await fileInput.files[0].bytes()
+			bytes = new Uint8Array(await encodeAudio(bytes.buffer) as ArrayBuffer)
+
+			let str = ''
+			bytes.forEach((b, i) => {
+				
+				str += '0x'+b.toString(16).padStart(2, '0') + ','
+				if (i % 20 == 0) str += '\n';
+			});
+			console.log(str);
+			console.log(bytes.byteLength);
 		}
+
 	}
 })
 let clearBtn = document.getElementById('clear-btn') as HTMLButtonElement
@@ -370,11 +412,6 @@ async function serialize(data: AdofaiFile) {
 		let eventHeapView = new Uint8Array(module.HEAPU8.buffer, eventPtr, eventData.length)
 		eventHeapView.set(eventData)
 
-		module._clear();
-
-		module._set_beatmap_data(anglePtr, tilePtr, tileData.length);
-		module._set_event_data(eventPtr, events.length);
-		module._set_bpm(data.settings.bpm);
 
 		let imageBuffer = new ArrayBuffer(0);
 		if (data.settings.bgImage != '') {
@@ -382,7 +419,16 @@ async function serialize(data: AdofaiFile) {
 			if (img) imageBuffer = img;
 		}
 
-		module._play();
+		console.log('serialized image!')
+		
+		let songBuffer = new ArrayBuffer(0);
+		if (data.settings.songFilename != '') {
+			let song = await getSong(data.settings.songFilename)
+			if (song !== undefined) songBuffer = song;
+		}
+
+		console.log('serialized song!');
+		console.log(songBuffer);
 
 		let settingsBuffer = new ArrayBuffer(20);
 		let settingsView = new DataView(settingsBuffer);
@@ -394,12 +440,20 @@ async function serialize(data: AdofaiFile) {
 		offset += 4;
 		settingsView.setUint32(offset, imageBuffer.byteLength, little_endian)
 		offset += 4;
-		settingsView.setUint32(offset, 0, little_endian)
+		settingsView.setUint32(offset, songBuffer.byteLength, little_endian)
 		offset += 4;
 		settingsView.setFloat32(offset, data.settings.bpm, little_endian)
 		offset += 4;
 
-		let blob = new Blob([settingsBuffer, tileData, angleData, eventData, imageBuffer]);
+		let blob = new Blob([settingsBuffer, tileData, angleData, eventData, imageBuffer, songBuffer]);
 		currentBeatmap = blob
+
+		module._clear();
+
+		module._set_beatmap_data(anglePtr, tilePtr, tileData.length);
+		module._set_event_data(eventPtr, events.length);
+		module._set_bpm(data.settings.bpm);
+
+		module._play();
 	}
 }

@@ -6,7 +6,8 @@
       "*": ["./node_modules/*", "./js/*"]
     },
     "checkJs": true,
-    "allowJs": true
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
   },
   "include": ["js/**/*", "lgfx_wasm.html"],
   "exclude": ["node_modules", "build"]
