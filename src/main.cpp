@@ -117,6 +117,9 @@ void mainfunc(void)
     fps = frame_count;
     frame_count = 0;
   }
+  // TODO: Temporary fix for synchronous upload taking too long
+  // Otherwise a too large delta_time might invalidate the app and crash
+  if (delta_time > 1) delta_time = 0;
 
   app.update(delta_time);
 
@@ -124,95 +127,32 @@ void mainfunc(void)
 }
 
 #if defined(ESP_PLATFORM)
-#include "esp_flash.h"
-#include "esp_log.h"
-
-void print_memory_info(void)
-{
-  // Get total and free sizes for different memory types
-  multi_heap_info_t info;
-
-  // 1. Internal SRAM (IRAM/DRAM) - MALLOC_CAP_INTERNAL
-  heap_caps_get_info(&info, MALLOC_CAP_INTERNAL);
-  ESP_LOGI("Main", "\n--- Internal SRAM (IRAM/DRAM) ---\n");
-  ESP_LOGI("Main", "Total: %d KB\n", (info.total_free_bytes + info.total_allocated_bytes) / 1024);
-  ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
-  ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
-
-  // 2. External PSRAM (SPIRAM) - MALLOC_CAP_SPIRAM
-  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) > 0)
-  {
-    heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
-    ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
-    ESP_LOGI("Main", "Total: %d KB\n", (info.total_free_bytes + info.total_allocated_bytes) / 1024);
-    ESP_LOGI("Main", "Free: %d KB\n", info.total_free_bytes / 1024);
-    ESP_LOGI("Main", "Largest Free Block: %d KB\n", info.largest_free_block / 1024);
-  }
-  else
-  {
-    ESP_LOGI("Main", "\n--- External PSRAM (SPIRAM) ---\n");
-    ESP_LOGI("Main", "PSRAM is not enabled or not detected.\n");
-  }
-
-  // 3. Flash Size (Storage, not RAM)
-  ESP_LOGI("Main", "\n--- Flash (Storage) ---\n");
-
-  uint32_t flash_size;
-  auto res = esp_flash_get_size(NULL, &flash_size);
-
-  if (res == ESP_OK)
-  {
-    ESP_LOGI("Main", "Total Flash Size: %d MB\n", (int)flash_size / (1024 * 1024));
-  }
-  else
-  {
-    ESP_LOGI("Main", "Failed to get flash size.\n");
-  }
-
-  // Optional: Print a summary from the main heap
-  ESP_LOGI("Main", "\n--- Summary ---\n");
-  ESP_LOGI("Main", "Total Free Heap (all memory): %d KB\n", (int)esp_get_free_heap_size() / 1024);
-  ESP_LOGI("Main", "Minimum Free Heap Ever: %d KB\n", (int)esp_get_minimum_free_heap_size() / 1024);
-}
-
 #include <LittleFS.h>
 #include <Arduino.h>
-#include <AudioGeneratorMP3.h>
-#include <AudioOutputI2S.h>
-#include <AudioFileSourceLittleFS.h>
 
-AudioGeneratorMP3 *mp3;
-AudioFileSourceLittleFS *file;
-AudioOutputI2S *out;
+// We need more than the 8K default with other things running, so just double to avoid issues.
+// Opus codes uses *lots* of stack variables in the internal decoder instead of a global working chunk
+SET_LOOP_TASK_STACK_SIZE(16 * 1024);  // 16KB
+// On the Pico this is already taken care of using the built-in NONTHREADSAFE_PSEUDOSTACK in the config file.
+
+#include "debug.h"
 #endif
 
 void setup(void)
 {
   setup_display();
 
-#if defined(ESP_PLATFORM)
-  LittleFS.begin(true, "/littlefs", 10, "littlefs");
-
   BeatmapPlayer::background.setTextSize(2);
   BeatmapPlayer::background.setColorDepth(8);
+
+#if defined(ESP_PLATFORM)
+  LittleFS.begin(true, "/littlefs", 10, "littlefs");
   BeatmapPlayer::background.setPsram(true);
   BeatmapPlayer::background.createSprite(lcd.width(), lcd.height());
   BeatmapPlayer::background.drawPngFile("/littlefs/bg.png", 0, 0, lcd.width(), lcd.height());
 
-  file = new AudioFileSourceLittleFS("/audio.mp3");
-  out = new AudioOutputI2S();
-  mp3 = new AudioGeneratorMP3();
-
-  out->SetPinout(12, 11, 14);
-  out->SetGain(0.05);
-
-  mp3->begin(file, out);
-
   print_memory_info();
 #else
-  lcd.setFont(&fonts::DejaVu12);
-  BeatmapPlayer::background.setTextSize(2);
-  BeatmapPlayer::background.setColorDepth(8);
   BeatmapPlayer::background.createSprite(lcd.width(), lcd.height());
   BeatmapPlayer::background.clear(lcd.color332(80, 80, 80));
 #endif
@@ -222,15 +162,6 @@ void setup(void)
 
 void loop(void)
 {
-#if defined(ESP_PLATFORM)
-  if (mp3->isRunning())
-  {
-    if (!mp3->loop())
-    {
-      mp3->stop();
-    }
-  }
-#endif
   mainfunc();
   drawfunc();
 }

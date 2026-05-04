@@ -2,6 +2,7 @@
 #include "beatmap.h"
 #include "lgfx.h"
 #include "data.h"
+#include "networkservice.h"
 
 enum class AppState
 {
@@ -37,9 +38,16 @@ public:
         BeatmapPlayer::set_event_data(Data::eventData, Data::eventCount);
 
         BeatmapPlayer::begin();
+
+        music_player.setup();
+        setup_webserver();
     }
     void update(float delta_time)
     {
+        music_player.update();
+        // TODO: Move this to another menu, otherwise performance heavy during playtime
+        network_update();
+
         switch (state)
         {
         case AppState::BeatmapPlayer:

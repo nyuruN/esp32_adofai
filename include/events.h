@@ -49,7 +49,7 @@ struct CameraOffset
   i16 offset_y; // in mili tile size
   EaseType ease;
 } __attribute__((packed));
-// 7 bytes
+// 2 + 4 + 1 = 7 bytes
 struct CameraZoom
 {
   u16 duration; // in mili beats
@@ -67,13 +67,13 @@ struct CameraSetMode
   u16 duration;
   RelativeTo relative_to;
 } __attribute__((packed));
-// 3 byte
+// 4 byte
 struct SetTrackAnimation
 {
   u16 beatsAhead; // in mili beats, UINT16_MAX = no animation
   u16 beatsBehind; // in mili beats, UINT16_MAX = no animation
 } __attribute__((packed));
-// 1 + 4 + 2 + 8 (union) = 16 bytes
+// 1 + 4 + 2 + 7 (union) = 16 bytes
 struct Event
 {
   EventType type;
