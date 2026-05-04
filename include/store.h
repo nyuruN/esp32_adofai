@@ -45,7 +45,7 @@ public:
         multi_heap_info_t info;
         heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
         max_size = info.total_free_bytes;
-#elif
+#else
         max_size = -1;
 #endif
     }

@@ -6,6 +6,8 @@
 #include "music_player.h"
 #include "debug.h"
 
+#if defined(ESP_PLATFORM)
+
 #include <Wifi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
@@ -263,3 +265,10 @@ inline void network_update()
 		break;
 	}
 }
+
+#else
+
+inline void setup_webserver() {}
+inline void network_update() {}
+
+#endif

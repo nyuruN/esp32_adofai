@@ -1,6 +1,8 @@
 
 #include "rust_typedef.h"
 
+#if defined(ESP_PLATFORM)
+
 #include <AudioOutputI2S.h>
 #include <AudioFileSourcePROGMEM.h>
 #include <AudioFileSourceLittleFS.h>
@@ -62,5 +64,17 @@ public:
         }
     }
 };
+
+#else
+
+class MusicPlayer {
+public:
+    void setup() {}
+    void set_song(const void* ptr, u32 len) {}
+    void set_song(const char* filename) {}
+    void play() {}
+    void update() {}
+};
+#endif 
 
 inline MusicPlayer music_player;
